@@ -47,54 +47,6 @@ Look for the asset named `dispatcharr-exporter-X.X.X.zip` and download it.
 3. Import the new version via the **"Import"** button
 4. **⚠️ IMPORTANT: Restart Dispatcharr** for the update to take effect
 
-### Uninstalling the Plugin
-
-> **Note:** Due to the early state of the plugin system, you may need to manually remove files:
-
-1. Stop Dispatcharr
-2. Remove the plugin directory:
-   ```bash
-   rm -rf /path/to/dispatcharr/data/plugins/prometheus_exporter*
-   ```
-3. Start Dispatcharr
-4. Go to the **Plugins** page and remove the plugin from the UI (if still listed)
-
-## Recommended Environment Configuration
-
-### Prevent Permission Issues (Recommended)
-
-Add this environment variable to your Dispatcharr container to prevent root-owned Python bytecode cache files:
-
-**In docker-compose.yml:**
-```yaml
-services:
-  dispatcharr:
-    environment:
-      - PYTHONDONTWRITEBYTECODE=1
-```
-
-**Why this is recommended:**
-- **Prevents update failures**: Dispatcharr runs some startup commands as root before switching to the non-root user, which can create root-owned `__pycache__` directories that prevent plugin updates
-- **Cleaner filesystem**: No bytecode cache directories cluttering your plugin folders
-- **Minimal impact**: Adds ~100-200ms to container startup time (one-time per restart)
-
-**What it does:**
-- Prevents Python from writing `.pyc` bytecode cache files to disk
-- Python still compiles modules to bytecode in memory (no functionality changes)
-- Once Dispatcharr is running, performance is identical
-
-**What it doesn't affect:**
-- ✅ All Python code runs normally
-- ✅ All imports work the same
-- ✅ In-memory caching still happens
-- ✅ No features are disabled
-
-**Without this variable:**
-If you see errors like "Permission denied" when updating plugins, this is likely caused by root-owned `__pycache__` directories. You can clean them manually:
-```bash
-docker exec -u root <container-name> find /data/plugins -name __pycache__ -type d -exec rm -rf {} +
-```
-
 ## Usage
 
 ### Starting the Metrics Server
