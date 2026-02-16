@@ -139,3 +139,4 @@ README_OLD.md
 *.tmp
 *.bak
 *.orig
+.github/copilot-instructions.md

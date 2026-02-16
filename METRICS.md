@@ -11,7 +11,7 @@ Complete reference for all metrics exposed by the Dispatcharr Prometheus Exporte
 - [Channel Metrics](#channel-metrics)
 - [Stream Metrics](#stream-metrics)
 - [Profile Metrics](#profile-metrics)
-- [VOD Metrics](#vod-metrics)
+- [Client Connection Metrics](#client-connection-metrics)
 - [Legacy Metrics](#legacy-metrics)
 
 ---
@@ -60,7 +60,6 @@ dispatcharr_exporter_info{version="1.2.0"} 1
 - `base_url` - Dispatcharr base URL
 - `include_m3u_stats` - M3U stats included (true/false)
 - `include_epg_stats` - EPG stats included (true/false)
-- `include_vod_stats` - VOD stats included (true/false)
 - `include_client_stats` - Client stats included (true/false)
 - `include_source_urls` - Source URLs included (true/false)
 - `include_legacy_metrics` - Legacy metrics included (true/false)
@@ -69,7 +68,7 @@ dispatcharr_exporter_info{version="1.2.0"} 1
 
 **Example:**
 ```
-dispatcharr_exporter_settings_info{auto_start="true",suppress_access_logs="true",disable_update_notifications="false",port="9192",host="0.0.0.0",base_url="",include_m3u_stats="true",include_epg_stats="false",include_vod_stats="false",include_client_stats="false",include_source_urls="false",include_legacy_metrics="false"} 1
+dispatcharr_exporter_settings_info{auto_start="true",suppress_access_logs="true",disable_update_notifications="false",port="9192",host="0.0.0.0",base_url="",include_m3u_stats="true",include_epg_stats="false",include_client_stats="false",include_source_urls="false",include_legacy_metrics="false"} 1
 ```
 
 ### `dispatcharr_exporter_port`
@@ -223,48 +222,69 @@ dispatcharr_channel_groups 15
 
 ## Stream Metrics
 
+**Important:** All stream metrics include both live channel streams and VOD streams, differentiated by the `type` label:
+- `type="live"` - Live channel streams
+- `type="vod"` - VOD streams
+
+Both types use the same base label structure:
+- `channel_uuid` - Unique stream identifier (channel UUID for live, full session_id for VOD)
+- `channel_number` - Stream number (channel number for live, numeric timestamp for VOD)
+
+VOD streams include additional metadata labels:
+- `channel_name` - Content title (movie/episode name)
+- `channel_group` - Content category (Action, Comedy, etc.)
+- `content_uuid` - Content database UUID
+- `content_type` - "movie" or "episode"
+- For episodes: `season_number`, `episode_number`, `series_name`
+
+Some metrics are only available for live streams (stream index, available streams, EPG programming). VOD streams do not populate stream_profile (transcode profile) as this data is not stored in Redis.
+
 ### Value Metrics (Minimal Labels)
 
-All value metrics use only `channel_uuid` and `channel_number` as labels for efficient querying and joining.
+All value metrics use minimal identifying labels (`type` plus stream-specific identifiers) for efficient querying and joining.
 
 #### `dispatcharr_active_streams`
 **Type:** gauge  
 **Value:** Count of active streams  
 **Labels:** None
 
-**Description:** Total number of currently active streams.
+**Description:** Total number of currently active streams (live and VOD combined).
 
 **Example:**
 ```
 dispatcharr_active_streams 12
 ```
 
-#### `dispatcharr_stream_uptime_seconds_total`
+#### `dispatcharr_stream_uptime_seconds`
 **Type:** counter  
 **Value:** Seconds since stream started  
 **Labels:**
-- `channel_uuid` - Channel UUID
-- `channel_number` - Channel number
+- `type` - Stream type: "live" or "vod"
+- `channel_uuid` - Stream identifier
+- `channel_number` - Stream number (numeric)
 
 **Description:** Stream uptime in seconds. Resets when stream restarts.
 
 **Example:**
 ```
-dispatcharr_stream_uptime_seconds_total{channel_uuid="12572661-bc4b-4937-8501-665c8a4ca1e1",channel_number="1001.0"} 3847
+dispatcharr_stream_uptime_seconds{type="live",channel_uuid="12572661-bc4b-4937-8501-665c8a4ca1e1",channel_number="1001.0"} 3847
+dispatcharr_stream_uptime_seconds{type="vod",channel_uuid="vod_1771265648474_7145",channel_number="1771265648474"} 1234
 ```
 
 #### `dispatcharr_stream_active_clients`
 **Type:** gauge  
 **Value:** Number of connected clients  
 **Labels:**
-- `channel_uuid` - Channel UUID
-- `channel_number` - Channel number
+- `type` - Stream type: "live" or "vod"
+- `channel_uuid` - Stream identifier
+- `channel_number` - Stream number (numeric)
 
 **Description:** Number of active clients connected to this stream.
 
 **Example:**
 ```
-dispatcharr_stream_active_clients{channel_uuid="12572661-bc4b-4937-8501-665c8a4ca1e1",channel_number="1001.0"} 1
+dispatcharr_stream_active_clients{type="live",channel_uuid="12572661-bc4b-4937-8501-665c8a4ca1e1",channel_number="1001.0"} 1
+dispatcharr_stream_active_clients{type="vod",channel_uuid="vod_1771265648474_7145",channel_number="1771265648474"} 2
 ```
 
 #### `dispatcharr_stream_fps`
@@ -371,16 +391,18 @@ dispatcharr_stream_channel_number{channel_uuid="12572661-bc4b-4937-8501-665c8a4c
 
 #### `dispatcharr_stream_id`
 **Type:** gauge  
-**Value:** The stream database ID  
+**Value:** The stream database ID (live) or 0 (VOD)  
 **Labels:**
-- `channel_uuid` - Channel UUID
-- `channel_number` - Channel number
+- `type` - Stream type: "live" or "vod"
+- `channel_uuid` - Stream identifier
+- `channel_number` - Stream number (numeric)
 
-**Description:** Database ID of the currently active stream. Value changes indicate stream switched.
+**Description:** Database ID of the currently active stream (live only). Value changes indicate stream switched. VOD always reports 0.
 
 **Example:**
 ```
-dispatcharr_stream_id{channel_uuid="12572661-bc4b-4937-8501-665c8a4ca1e1",channel_number="1001.0"} 2954
+dispatcharr_stream_id{type="live",channel_uuid="12572661-bc4b-4937-8501-665c8a4ca1e1",channel_number="1001.0"} 2954
+dispatcharr_stream_id{type="vod",channel_uuid="vod_1771265648474_7145",channel_number="1771265648474"} 0
 ```
 
 #### `dispatcharr_stream_index`
@@ -424,68 +446,110 @@ dispatcharr_stream_index >= dispatcharr_stream_available_streams - 1
 **Type:** gauge  
 **Value:** Always 1  
 **Labels:**
-- `channel_uuid` - Channel UUID
-- `channel_number` - Channel number
-- `channel_name` - Channel name
-- `channel_group` - Channel group name (or "none" if not assigned)
-- `stream_id` - Stream database ID
-- `stream_name` - Stream name
+- `type` - Stream type: "live" or "vod"
+- `channel_uuid` - Stream identifier
+- `channel_number` - Stream number (numeric)
+- `channel_name` - Channel/content name
+- `channel_group` - Channel group or content category (empty string if none)
 - `provider` - M3U account/provider name
 - `provider_type` - Provider type (XC, STD, etc.)
 - `state` - Stream state (active, waiting_for_clients, buffering, error, etc.)
-- `logo_url` - Channel logo URL
+- `logo_url` - Logo URL (empty string if none)
 - `profile_id` - M3U profile database ID
 - `profile_name` - M3U profile name
-- `stream_profile` - Transcode profile name
-- `video_codec` - Video codec (h264, hevc, etc.)
-- `resolution` - Video resolution (1920x1080, etc.)
+- `stream_profile` - Transcode profile name (empty string for VOD)
+- `video_codec` - Video codec (empty string if unknown)
+- `resolution` - Video resolution (empty string if unknown)
+- Live-specific: `stream_id`, `stream_name`
+- VOD-specific: `content_uuid`, `content_type` (movie/episode)
+- Episode-specific: `season_number`, `episode_number`, `series_name`
 
-**Description:** Full metadata for the active stream. Always output last for each stream. Use for joining to enrich other metrics.
+**Description:** Full metadata for the active stream. Use for joining to enrich other metrics. Note: Unknown/unavailable values are empty strings, not "unknown".
 
-**Example:**
+**Example (Live):**
 ```
-dispatcharr_stream_metadata{channel_uuid="12572661-bc4b-4937-8501-665c8a4ca1e1",channel_number="1001.0",channel_name="CBC Toronto",stream_id="2954",stream_name="CBC Toronto",provider="Provider A",provider_type="XC",state="active",logo_url="/api/channels/logos/1/cache/",profile_id="3",profile_name="Default",stream_profile="ffmpeg",video_codec="h264",resolution="1920x1080"} 1
+dispatcharr_stream_metadata{type="live",channel_uuid="12572661-bc4b-4937-8501-665c8a4ca1e1",channel_number="1001.0",channel_name="CBC Toronto",channel_group="News",stream_id="2954",stream_name="CBC Toronto",provider="Provider A",provider_type="XC",state="active",logo_url="/api/channels/logos/1/cache/",profile_id="3",profile_name="Default",stream_profile="ffmpeg Clean",video_codec="h264",resolution="1920x1080"} 1
+```
+
+**Example (VOD Movie):**
+```
+dispatcharr_stream_metadata{type="vod",channel_uuid="vod_1771265648474_7145",channel_number="1771265648474",content_uuid="d6ec6373-dbd2-4a35-a851-712f88e4768c",channel_name="1660 Vine (2022)",channel_group="Action",content_type="movie",provider="Provider A",provider_type="XC",state="active",logo_url="http://example.com/api/vod/vodlogos/74201/cache/",profile_id="24",profile_name="Default",stream_profile="",video_codec="h264",resolution="1920x1080"} 1
+```
+
+**Example (VOD Episode):**
+```
+dispatcharr_stream_metadata{type="vod",channel_uuid="vod_1771265648475_8156",channel_number="1771265648475",content_uuid="abc123-def456",channel_name="The Big Episode",channel_group="Drama",content_type="episode",season_number="3",episode_number="5",series_name="Great Show",provider="Provider A",provider_type="XC",state="active",logo_url="http://example.com/api/vod/vodlogos/12345/cache/",profile_id="24",profile_name="Default",stream_profile="",video_codec="h264",resolution="1920x1080"} 1
 ```
 
 #### `dispatcharr_stream_programming`
 **Type:** gauge  
-**Value:** Current program progress (0.0 to 1.0), or 0.0 if no current program  
+**Value:** Current program/content progress (0.0 to 1.0), or 0.0 if no current program  
 **Labels:**
-- `channel_uuid` - Channel UUID
-- `channel_number` - Channel number
-- `previous_title` - Previous program title (empty string if none)
-- `previous_subtitle` - Previous program subtitle/episode (empty string if none)
-- `previous_description` - Previous program description (empty string if none)
-- `previous_start_time` - Previous program start time in ISO format (empty string if none)
-- `previous_end_time` - Previous program end time in ISO format (empty string if none)
+- `type` - Stream type: "live" or "vod"
+- `channel_uuid` - Channel UUID (or VOD session ID for VOD content)
+- `channel_number` - Channel number (or VOD session timestamp)
+- `previous_title` - Previous program title (empty string if none; not used for VOD)
+- `previous_subtitle` - Previous program subtitle/episode (empty string if none; not used for VOD)
+- `previous_description` - Previous program description (empty string if none; not used for VOD)
+- `previous_start_time` - Previous program start time in ISO format (empty string if none; not used for VOD)
+- `previous_end_time` - Previous program end time in ISO format (empty string if none; not used for VOD)
 - `current_title` - Current program title (empty string if none)
+  - **Live TV**: EPG program title
+  - **VOD Movies**: Movie name
+  - **VOD Episodes**: Series name
 - `current_subtitle` - Current program subtitle/episode (empty string if none)
+  - **Live TV**: EPG episode/subtitle
+  - **VOD Movies**: "Year - Genre" (e.g., "1999 - Action, Sci-Fi")
+  - **VOD Episodes**: "S02E05 - Episode Name"
 - `current_description` - Current program description (empty string if none)
+  - **Live TV**: EPG program description
+  - **VOD**: Movie or episode description
 - `current_start_time` - Current program start time in ISO format (empty string if none)
+  - **Live TV**: EPG program start time
+  - **VOD**: Connection start time (when viewing began)
 - `current_end_time` - Current program end time in ISO format (empty string if none)
-- `next_title` - Next program title (empty string if none)
-- `next_subtitle` - Next program subtitle/episode (empty string if none)
-- `next_description` - Next program description (empty string if none)
-- `next_start_time` - Next program start time in ISO format (empty string if none)
-- `next_end_time` - Next program end time in ISO format (empty string if none)
+  - **Live TV**: EPG program end time
+  - **VOD**: Estimated completion time (start time + duration)
+- `next_title` - Next program title (empty string if none; not used for VOD)
+- `next_subtitle` - Next program subtitle/episode (empty string if none; not used for VOD)
+- `next_description` - Next program description (empty string if none; not used for VOD)
+- `next_start_time` - Next program start time in ISO format (empty string if none; not used for VOD)
+- `next_end_time` - Next program end time in ISO format (empty string if none; not used for VOD)
 
-**Description:** EPG program schedule information for the active stream. Only present if channel has EPG data assigned. The metric value represents how far into the current program we are (0.0 = just started, 1.0 = about to end). Labels provide previous, current, and next program information.
+**Description:** 
+- **Live TV**: EPG program schedule information for the active stream. Only present if channel has EPG data assigned. The metric value represents how far into the current program we are (0.0 = just started, 1.0 = about to end). Labels provide previous, current, and next program information.
+- **VOD**: Rich content metadata including title, description, year, genre, rating, and viewing progress. The metric value represents how far into the content the viewer is (based on elapsed time vs. duration).
 
-> **Note:** This metric only works with actual EPG data. Channels using placeholder or dummy EPG sources will not have this metric.
+> **Note for Live TV:** This metric only works with actual EPG data. Channels using placeholder or dummy EPG sources will not have this metric.
 
-**Example:**
+**Example (Live TV with EPG):**
 ```
-dispatcharr_stream_programming{channel_uuid="12572661-bc4b-4937-8501-665c8a4ca1e1",channel_number="1001.0",previous_title="Afternoon News",previous_subtitle="",previous_description="Local and national news coverage",previous_start_time="2026-01-02T17:00:00+00:00",previous_end_time="2026-01-02T18:00:00+00:00",current_title="The Evening News",current_subtitle="Special Report",current_description="Breaking news and analysis",current_start_time="2026-01-02T18:00:00+00:00",current_end_time="2026-01-02T19:00:00+00:00",next_title="Prime Time Drama",next_subtitle="Season 3 Episode 5",next_description="An exciting episode",next_start_time="2026-01-02T19:00:00+00:00",next_end_time="2026-01-02T20:00:00+00:00"} 0.5833
+dispatcharr_stream_programming{type="live",channel_uuid="12572661-bc4b-4937-8501-665c8a4ca1e1",channel_number="1001.0",previous_title="Afternoon News",previous_subtitle="",previous_description="Local and national news coverage",previous_start_time="2026-01-02T17:00:00+00:00",previous_end_time="2026-01-02T18:00:00+00:00",current_title="The Evening News",current_subtitle="Special Report",current_description="Breaking news and analysis",current_start_time="2026-01-02T18:00:00+00:00",current_end_time="2026-01-02T19:00:00+00:00",next_title="Prime Time Drama",next_subtitle="Season 3 Episode 5",next_description="An exciting episode",next_start_time="2026-01-02T19:00:00+00:00",next_end_time="2026-01-02T20:00:00+00:00"} 0.5833
+```
+
+**Example (VOD Movie):**
+```
+dispatcharr_stream_programming{type="vod",channel_uuid="vod_1771265648474_7145",channel_number="1771265648474",previous_title="",previous_subtitle="",previous_description="",previous_start_time="",previous_end_time="",current_title="The Matrix",current_subtitle="1999 - Action, Sci-Fi",current_description="A computer hacker learns from mysterious rebels about the true nature of his reality and his role in the war against its controllers.",current_start_time="2026-02-16T19:30:45+00:00",current_end_time="2026-02-16T21:46:45+00:00",next_title="",next_subtitle="",next_description="",next_start_time="",next_end_time=""} 0.4200
+```
+
+**Example (VOD Episode):**
+```
+dispatcharr_stream_programming{type="vod",channel_uuid="vod_1771265648475_8156",channel_number="1771265648475",previous_title="",previous_subtitle="",previous_description="",previous_start_time="",previous_end_time="",current_title="Breaking Bad",current_subtitle="S03E05 - Más",current_description="Gus increases his efforts to lure Walt back into business, forcing a rift between Walt and Jesse.",current_start_time="2026-02-16T20:15:22+00:00",current_end_time="2026-02-16T21:02:22+00:00",next_title="",next_subtitle="",next_description="",next_start_time="",next_end_time=""} 0.1852
 ```
 
 **Useful queries:**
 ```promql
-# Time remaining in current program (minutes)
-(1 - dispatcharr_stream_programming) * 
-  (timestamp(dispatcharr_stream_programming{current_end_time!=""}) - 
-   timestamp(dispatcharr_stream_programming{current_start_time!=""})) / 60
+# Time remaining in current program/content (minutes) - Live TV
+(1 - dispatcharr_stream_programming{type="live"}) * 
+  (timestamp(dispatcharr_stream_programming{type="live",current_end_time!=""}) - 
+   timestamp(dispatcharr_stream_programming{type="live",current_start_time!=""})) / 60
 
-# Combine title and subtitle for display
+# Time remaining in VOD content (minutes)
+(1 - dispatcharr_stream_programming{type="vod"}) * 
+  (timestamp(dispatcharr_stream_programming{type="vod",current_end_time!=""}) - 
+   timestamp(dispatcharr_stream_programming{type="vod",current_start_time!=""})) / 60
+
+# Combine title and subtitle for display (works for both live and VOD)
 label_join(
   dispatcharr_stream_programming,
   "program_full",
@@ -494,9 +558,12 @@ label_join(
   "current_subtitle"
 )
 
+# Filter VOD by genre (from current_subtitle for movies)
+dispatcharr_stream_programming{type="vod",current_subtitle=~".*Action.*"}
+
 # Join with stream metadata for enriched dashboard
 dispatcharr_stream_programming
-* on(channel_uuid, channel_number) group_left(channel_name, logo_url, state)
+* on(type, channel_uuid, channel_number) group_left(channel_name, logo_url, state)
   dispatcharr_stream_metadata
 ```
 
@@ -677,32 +744,113 @@ dispatcharr_stream_profile_max_connections{channel_uuid="12572661-bc4b-4937-8501
 
 ---
 
-## VOD Metrics
+## Client Connection Metrics
 
-*Optional metrics - disabled by default via `include_vod_stats` setting*
+*Optional metrics - disabled by default via `include_client_stats` setting*
 
-### `dispatcharr_vod_sessions`
+**Important:** All client metrics include both live channel clients and VOD session clients, differentiated by the `type` label:
+- `type="live"` - Clients streaming live channels
+- `type="vod"` - Clients streaming VOD content
+
+### `dispatcharr_active_clients`
 **Type:** gauge  
-**Value:** Session count  
+**Value:** Client count  
 **Labels:** None
 
-**Description:** Total number of active VOD (Video on Demand) sessions.
+**Description:** Total number of active client connections across both live and VOD streams.
 
 **Example:**
 ```
-dispatcharr_vod_sessions 3
+dispatcharr_active_clients 5
 ```
 
-### `dispatcharr_vod_active_streams`
+### `dispatcharr_client_info`
 **Type:** gauge  
-**Value:** Active stream count  
-**Labels:** None
+**Value:** Always 1  
+**Labels:**
+- `type` - Connection type: "live" or "vod"
+- `client_id` - Unique client identifier
+- `channel_uuid` - Stream identifier
+- `channel_number` - Stream number (numeric)
+- `ip_address` - Client IP address
+- `user_agent` - Client user agent string
+- `worker_id` - Dispatcharr worker ID
+- VOD-specific: `content_uuid`, `channel_name`, `content_type`
 
-**Description:** Total number of active VOD streams.
+**Description:** Metadata about each active client connection. Note: VOD sessions are counted as single clients even if they have multiple active HTTP streams.
 
 **Example:**
 ```
-dispatcharr_vod_active_streams 3
+dispatcharr_client_info{type="live",client_id="client_1771267188580_6007",channel_uuid="8c9d9b93-b626-42ce-a82f-2509fd8e606d",channel_number="101.0",ip_address="192.168.1.100",user_agent="VLC/3.0.21 LibVLC/3.0.21",worker_id="7a98b87ad2e3:164"} 1
+dispatcharr_client_info{type="vod",client_id="vod_1771265648474_7145",channel_uuid="vod_1771265648474_7145",channel_number="1771265648474",content_uuid="d6ec6373-dbd2-4a35-a851-712f88e4768c",channel_name="1660 Vine (2022)",content_type="movie",ip_address="192.168.1.121",user_agent="Mozilla/5.0",worker_id="7a98b87ad2e3-164"} 1
+```
+
+### `dispatcharr_client_connection_duration_seconds`
+**Type:** gauge  
+**Value:** Duration in seconds  
+**Labels:**
+- `type` - Connection type: "live" or "vod"
+- `client_id` - Unique client identifier
+- `channel_uuid` - Stream identifier
+- `channel_number` - Stream number (numeric)
+
+**Description:** How long the client has been connected.
+
+**Example:**
+```
+dispatcharr_client_connection_duration_seconds{type="live",client_id="client_1771267188580_6007",channel_uuid="8c9d9b93-b626-42ce-a82f-2509fd8e606d",channel_number="101.0"} 22
+dispatcharr_client_connection_duration_seconds{type="vod",client_id="vod_1771265648474_7145",channel_uuid="vod_1771265648474_7145",channel_number="1771265648474"} 13
+```
+
+### `dispatcharr_client_bytes_sent`
+**Type:** counter  
+**Value:** Total bytes sent  
+**Labels:**
+- `type` - Connection type: "live" or "vod"
+- `client_id` - Unique client identifier
+- `channel_uuid` - Stream identifier
+- `channel_number` - Stream number (numeric)
+
+**Description:** Total bytes transferred to the client.
+
+**Example:**
+```
+dispatcharr_client_bytes_sent{type="live",client_id="client_1771267188580_6007",channel_uuid="8c9d9b93-b626-42ce-a82f-2509fd8e606d",channel_number="101.0"} 16887288
+dispatcharr_client_bytes_sent{type="vod",client_id="vod_1771265648474_7145",channel_uuid="vod_1771265648474_7145",channel_number="1771265648474"} 35635200
+```
+
+### `dispatcharr_client_avg_transfer_rate_bps`
+**Type:** gauge  
+**Value:** Bitrate in bits per second  
+**Labels:**
+- `type` - Connection type: "live" or "vod"
+- `client_id` - Unique client identifier
+- `channel_uuid` - Stream identifier
+- `channel_number` - Stream number (numeric)
+
+**Description:** Average transfer rate to the client.
+
+**Example:**
+```
+dispatcharr_client_avg_transfer_rate_bps{type="live",client_id="client_1771267188580_6007",channel_uuid="8c9d9b93-b626-42ce-a82f-2509fd8e606d",channel_number="101.0"} 6634400.0
+dispatcharr_client_avg_transfer_rate_bps{type="vod",client_id="vod_1771265648474_7145",channel_uuid="vod_1771265648474_7145",channel_number="1771265648474"} 21929353.84
+```
+
+### `dispatcharr_client_current_transfer_rate_bps`
+**Type:** gauge  
+**Value:** Bitrate in bits per second  
+**Labels:**
+- `type` - Connection type: "live" or "vod"
+- `client_id` - Unique client identifier
+- `channel_uuid` - Stream identifier
+- `channel_number` - Stream number (numeric)
+
+**Description:** Current transfer rate to the client. For live channels, this is the real-time rate from Redis. For VOD, this uses the average rate (since VOD bitrate is typically stable).
+
+**Example:**
+```
+dispatcharr_client_current_transfer_rate_bps{type="live",client_id="client_1771267188580_6007",channel_uuid="8c9d9b93-b626-42ce-a82f-2509fd8e606d",channel_number="101.0"} 9025062.4
+dispatcharr_client_current_transfer_rate_bps{type="vod",client_id="vod_1771265648474_7145",channel_uuid="vod_1771265648474_7145",channel_number="1771265648474"} 21929353.84
 ```
 
 ---
@@ -749,16 +897,22 @@ dispatcharr_vod_active_streams 3
 
 ### Basic Queries
 ```promql
-# All active streams
+# All active streams (live + VOD)
 dispatcharr_active_streams
 
-# All active clients
+# Only live streams
+count(dispatcharr_stream_active_clients{type="live"})
+
+# Only VOD streams
+count(dispatcharr_stream_active_clients{type="vod"})
+
+# All active clients (live + VOD)
 dispatcharr_active_clients
 
 # FPS for specific channel
 dispatcharr_stream_fps{channel_uuid="..."}
 
-# Detect fallback (backup stream active)
+# Detect fallback (backup stream active) - live only
 dispatcharr_stream_index > 0
 
 # Sort channels by number
@@ -771,13 +925,36 @@ dispatcharr_client_connection_duration_seconds
 dispatcharr_client_connection_duration_seconds > 3600
 ```
 
+### Working with Live + VOD Unified Metrics
+```promql
+# Total active streams across both types
+sum(dispatcharr_stream_active_clients)
+
+# Total active streams by type
+sum by (type) (dispatcharr_stream_active_clients)
+
+# Total bitrate across all streams (live + VOD)
+sum(dispatcharr_stream_avg_bitrate_bps)
+
+# Average bitrate by type
+avg by (type) (dispatcharr_stream_avg_bitrate_bps)
+
+# Profile connections including both live and VOD
+dispatcharr_profile_connections
+
+# Join VOD metadata to get content name
+dispatcharr_stream_uptime_seconds{type="vod"}
+  * on(channel_uuid, channel_number) group_left(channel_name, content_type)
+  dispatcharr_stream_metadata
+```
+
 ### Client Queries
 ```promql
-# Total bytes sent to all clients
-sum(dispatcharr_client_bytes_sent_total)
+# Total bytes sent to all clients (live + VOD)
+sum(dispatcharr_client_bytes_sent)
 
-# Total bytes sent per channel
-sum by (channel_uuid, channel_number) (dispatcharr_client_bytes_sent_total)
+# Total bytes sent per stream
+sum by (type, channel_uuid, channel_number) (dispatcharr_client_bytes_sent)
 
 # Average transfer rate across all clients (in bps)
 avg(dispatcharr_client_avg_transfer_rate_bps)
@@ -787,31 +964,41 @@ avg(dispatcharr_client_avg_transfer_rate_bps) / 1000000
 
 # Client connection duration with IP and user agent
 dispatcharr_client_connection_duration_seconds
-  * on(client_id, channel_uuid, channel_number) group_left(ip_address, user_agent)
+  * on(type, client_id, channel_uuid, channel_number) group_left(ip_address, user_agent)
   dispatcharr_client_info
 
-# Client info with channel name (double join)
+# Client info with stream metadata (double join)
 dispatcharr_client_info
-  * on(channel_uuid, channel_number) group_left(channel_name, provider)
+  * on(type, channel_uuid, channel_number) group_left(channel_name, provider, content_type)
+  dispatcharr_stream_metadata
+
+# VOD client connections with content name
+dispatcharr_client_info{type="vod"}
+  * on(channel_uuid, channel_number) group_left(channel_name)
   dispatcharr_stream_metadata
 ```
 
 ### Enriched Queries (with joins)
 ```promql
-# FPS with provider information
+# FPS with provider information (live only)
 dispatcharr_stream_fps
   * on(channel_uuid, channel_number) group_left(provider, stream_name)
-  dispatcharr_stream_metadata
+  dispatcharr_stream_metadata{type="live"}
 
 # Total transfer with full metadata
-dispatcharr_stream_transfer_bytes_total
-  * on(channel_uuid, channel_number) group_left(logo_url, resolution, video_codec)
+dispatcharr_stream_total_transfer_mb
+  * on(type, channel_uuid, channel_number) group_left(logo_url, resolution, video_codec, channel_name)
   dispatcharr_stream_metadata
 
-# Stream uptime with index
-dispatcharr_stream_uptime_seconds_total
+# Stream uptime with index (live only)
+dispatcharr_stream_uptime_seconds{type="live"}
   + on(channel_uuid, channel_number)
   dispatcharr_stream_index
+
+# VOD streams with category
+dispatcharr_stream_uptime_seconds{type="vod"}
+  * on(channel_uuid, channel_number) group_left(channel_group, content_type)
+  dispatcharr_stream_metadata
 ```
 
 ### Alerts

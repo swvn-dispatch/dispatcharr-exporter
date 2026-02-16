@@ -1,6 +1,6 @@
 {
   "name": "Dispatcharr Exporter",
-  "version": "-dev-00140f6f-20260214101124",
+  "version": "-dev-c24d047d-20260216144943",
   "description": "Expose Dispatcharr metrics in Prometheus exporter-compatible format for monitoring",
   "author": "SethWV",
   "help_url": "https://github.com/sethwv/dispatcharr-exporter",

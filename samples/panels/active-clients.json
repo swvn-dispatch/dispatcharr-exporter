@@ -4,20 +4,23 @@
   "title": "Clients",
   "gridPos": {
     "x": 0,
-    "y": 15,
-    "h": 5,
-    "w": 8
+    "y": 13,
+    "h": 7,
+    "w": 24
   },
   "fieldConfig": {
     "defaults": {
       "custom": {
         "align": "center",
+        "footer": {
+          "reducers": []
+        },
         "cellOptions": {
-          "type": "auto",
-          "wrapText": false
+          "type": "auto"
         },
         "inspect": false,
-        "filterable": false
+        "filterable": false,
+        "wrapText": false
       },
       "mappings": [],
       "thresholds": {
@@ -46,8 +49,8 @@
             "value": 0
           },
           {
-            "id": "custom.width",
-            "value": 100
+            "id": "custom.minWidth",
+            "value": 50
           }
         ]
       },
@@ -70,8 +73,8 @@
             "value": false
           },
           {
-            "id": "custom.width",
-            "value": 100
+            "id": "custom.minWidth",
+            "value": 50
           }
         ]
       },
@@ -89,7 +92,7 @@
             }
           },
           {
-            "id": "custom.hidden",
+            "id": "custom.hideFrom.viz",
             "value": true
           },
           {
@@ -145,8 +148,8 @@
         },
         "properties": [
           {
-            "id": "custom.width",
-            "value": 120
+            "id": "custom.minWidth",
+            "value": 50
           }
         ]
       },
@@ -161,8 +164,8 @@
             "value": "decbytes"
           },
           {
-            "id": "custom.width",
-            "value": 100
+            "id": "custom.minWidth",
+            "value": 50
           }
         ]
       },
@@ -173,12 +176,12 @@
         },
         "properties": [
           {
-            "id": "custom.width",
-            "value": 100
-          },
-          {
             "id": "unit",
             "value": "bps"
+          },
+          {
+            "id": "custom.minWidth",
+            "value": 50
           }
         ]
       }
@@ -219,21 +222,24 @@
           "stream_id": true,
           "stream_name": true,
           "stream_profile": true,
-          "video_codec": true
+          "video_codec": true,
+          "type": true
         },
-        "includeByName": {},
         "indexByName": {
-          "Time": 5,
-          "Value": 2,
-          "channel_name": 4,
-          "channel_number": 3,
-          "channel_uuid": 6,
           "client_id": 0,
-          "group": 7,
-          "instance": 8,
-          "ip_address": 1,
-          "job": 9,
-          "process": 10
+          "channel_number": 1,
+          "ip_address": 2,
+          "channel_name": 3,
+          "Time": 4,
+          "channel_uuid": 5,
+          "group": 6,
+          "instance": 7,
+          "job": 8,
+          "process": 9,
+          "type": 10,
+          "Value #A": 11,
+          "Value #B": 12,
+          "Value #C": 13
         },
         "renameByName": {
           "Value": "Duration",
@@ -245,8 +251,10 @@
           "ip_address": "Client",
           "logo_url": "Logo",
           "profile_name": "Profile",
-          "provider": "Provider"
-        }
+          "provider": "Provider",
+          "type": "Type"
+        },
+        "includeByName": {}
       }
     },
     {
@@ -274,7 +282,7 @@
       }
     }
   ],
-  "pluginVersion": "",
+  "pluginVersion": "12.3.3",
   "targets": [
     {
       "datasource": {
@@ -329,15 +337,7 @@
   "options": {
     "showHeader": false,
     "cellHeight": "sm",
-    "footer": {
-      "show": false,
-      "reducer": [
-        "count"
-      ],
-      "countRows": false,
-      "fields": "",
-      "enablePagination": false
-    },
+    "enablePagination": false,
     "frameIndex": 1,
     "sortBy": []
   }

@@ -43,7 +43,7 @@ def _load_plugin_config():
         logger.warning(f"Could not load plugin.json, using fallback config: {e}")
         # Fallback configuration if JSON can't be loaded
         return {
-            "version": "-dev-00140f6f-20260214101124",
+            "version": "-dev-c24d047d-20260216144943",
             "name": "Dispatcharr Exporter",
             "author": "SethWV",
             "description": "Expose Dispatcharr metrics in Prometheus exporter-compatible format for monitoring",
@@ -142,16 +142,12 @@ class PrometheusMetricsCollector:
         if not settings or settings.get('include_m3u_stats', True):
             metrics.extend(self._collect_profile_metrics())
         
-        # Stream metrics with detailed info
+        # Stream metrics with detailed info (includes both live and VOD)
         metrics.extend(self._collect_stream_metrics(settings))
         
-        # Client connection metrics (optional, disabled by default)
+        # Client connection metrics (optional, disabled by default; includes both live and VOD)
         if settings and settings.get('include_client_stats', False):
             metrics.extend(self._collect_client_metrics())
-        
-        # VOD metrics (optional, disabled by default)
-        if settings and settings.get('include_vod_stats', False):
-            metrics.extend(self._collect_vod_metrics())
 
         return "\n".join(metrics)
     
@@ -277,8 +273,10 @@ class PrometheusMetricsCollector:
             if self.redis_client:
                 # Calculate actual profile connections by scanning active streams
                 # This is more accurate than the Redis counters which don't update during fallback
+                # We need to check BOTH live channel streams AND VOD connections
                 actual_profile_connections = {}
                 
+                # Count live channel streams by scanning channel metadata
                 try:
                     pattern = "channel_stream:*"
                     for key in self.redis_client.scan_iter(match=pattern):
@@ -314,7 +312,38 @@ class PrometheusMetricsCollector:
                         except Exception as e:
                             logger.debug(f"Error processing stream key for profile counting: {e}")
                 except Exception as e:
-                    logger.debug(f"Error calculating actual profile connections: {e}")
+                    logger.debug(f"Error calculating live channel profile connections: {e}")
+                
+                # Count VOD connections by scanning persistent connection keys
+                try:
+                    pattern = "vod_persistent_connection:*"
+                    for key in self.redis_client.scan_iter(match=pattern):
+                        try:
+                            connection_data = self.redis_client.hgetall(key)
+                            if connection_data:
+                                # Handle both bytes and string keys
+                                if isinstance(list(connection_data.keys())[0], bytes):
+                                    m3u_profile_id = connection_data.get(b'm3u_profile_id', b'')
+                                    active_streams = connection_data.get(b'active_streams', b'0')
+                                    if isinstance(m3u_profile_id, bytes):
+                                        m3u_profile_id = m3u_profile_id.decode('utf-8')
+                                    if isinstance(active_streams, bytes):
+                                        active_streams = active_streams.decode('utf-8')
+                                else:
+                                    m3u_profile_id = connection_data.get('m3u_profile_id', '')
+                                    active_streams = connection_data.get('active_streams', '0')
+                                
+                                # Only count if there are active streams on this connection
+                                if m3u_profile_id and int(active_streams) > 0:
+                                    try:
+                                        profile_id = int(m3u_profile_id)
+                                        actual_profile_connections[profile_id] = actual_profile_connections.get(profile_id, 0) + 1
+                                    except (ValueError, TypeError):
+                                        pass
+                        except Exception as e:
+                            logger.debug(f"Error processing VOD connection key for profile counting: {e}")
+                except Exception as e:
+                    logger.debug(f"Error calculating VOD profile connections: {e}")
                 
                 for profile in M3UAccountProfile.objects.all():
                     try:
@@ -322,7 +351,7 @@ class PrometheusMetricsCollector:
                         if profile.m3u_account.name.lower() == 'custom':
                             continue
                         
-                        # Use calculated connections instead of Redis counter (which doesn't update during fallback)
+                        # Use calculated connections (includes both live channels and VOD)
                         current_connections = actual_profile_connections.get(profile.id, 0)
                         max_connections = profile.max_streams
                         
@@ -392,7 +421,7 @@ class PrometheusMetricsCollector:
         settings = settings or {}
         
         metrics = []
-        metrics.append("# HELP dispatcharr_active_streams Total number of active streams")
+        metrics.append("# HELP dispatcharr_active_streams Total number of active streams (live and VOD)")
         metrics.append("# TYPE dispatcharr_active_streams gauge")
         
         include_legacy = settings and settings.get('include_legacy_metrics', False)
@@ -400,28 +429,28 @@ class PrometheusMetricsCollector:
             metrics.append("# HELP dispatcharr_stream_info Detailed information about active streams (legacy format with all values as labels)")
             metrics.append("# TYPE dispatcharr_stream_info gauge")
         
-        # Channel number as a gauge (for numeric operations/sorting)
-        metrics.append("# HELP dispatcharr_stream_channel_number Channel number for active stream")
+        # Channel number as a gauge (for numeric operations/sorting) - live channels only
+        metrics.append("# HELP dispatcharr_stream_channel_number Channel number for active stream (live only)")
         metrics.append("# TYPE dispatcharr_stream_channel_number gauge")
         
         # Stream ID as a gauge (for tracking which specific stream is active)
-        metrics.append("# HELP dispatcharr_stream_id Active stream ID for channel")
+        metrics.append("# HELP dispatcharr_stream_id Active stream ID for channel or session ID for VOD")
         metrics.append("# TYPE dispatcharr_stream_id gauge")
         
-        # Index metric showing which stream is active with identifying information
-        metrics.append("# HELP dispatcharr_stream_index Active stream index for channel (0=primary, >0=fallback)")
+        # Index metric showing which stream is active with identifying information - live channels only
+        metrics.append("# HELP dispatcharr_stream_index Active stream index for channel (0=primary, >0=fallback) (live only)")
         metrics.append("# TYPE dispatcharr_stream_index gauge")
         
-        # Available streams count
-        metrics.append("# HELP dispatcharr_stream_available_streams Total number of streams configured for channel")
+        # Available streams count - live channels only
+        metrics.append("# HELP dispatcharr_stream_available_streams Total number of streams configured for channel (live only)")
         metrics.append("# TYPE dispatcharr_stream_available_streams gauge")
         
         # Metadata/info metric with enrichment labels
-        metrics.append("# HELP dispatcharr_stream_metadata Stream metadata and enrichment information (state values: active, waiting_for_clients, buffering, stopping, error, unknown)")
+        metrics.append("# HELP dispatcharr_stream_metadata Stream metadata and enrichment information (type: live/vod, state values: active, waiting_for_clients, buffering, stopping, error, unknown)")
         metrics.append("# TYPE dispatcharr_stream_metadata gauge")
         
-        # EPG Program information
-        metrics.append("# HELP dispatcharr_stream_programming Current EPG program information for active streams")
+        # EPG Program information - live channels only
+        metrics.append("# HELP dispatcharr_stream_programming Current EPG program information for active streams (live only)")
         metrics.append("# TYPE dispatcharr_stream_programming gauge")
         
         # Separate gauge metrics for values that change (recommended for proper time series)
@@ -450,6 +479,8 @@ class PrometheusMetricsCollector:
             if self.redis_client:
                 # Count active channel streams and collect detailed info
                 active_streams = 0
+                active_live_streams = 0
+                active_vod_streams = 0
                 stream_info_metrics = []
                 stream_value_metrics = []
                 pattern = "channel_stream:*"
@@ -457,6 +488,7 @@ class PrometheusMetricsCollector:
                 try:
                     for key in self.redis_client.scan_iter(match=pattern):
                         active_streams += 1
+                        active_live_streams += 1
                         
                         # Extract channel ID from key (format: "channel_stream:channel_id")
                         try:
@@ -605,6 +637,7 @@ class PrometheusMetricsCollector:
                                         
                                         # Build minimal base labels (for joining across metrics)
                                         base_labels = [
+                                            f'type="live"',
                                             f'channel_uuid="{channel_uuid}"',
                                             f'channel_number="{channel_number}"'
                                         ]
@@ -825,8 +858,424 @@ class PrometheusMetricsCollector:
                 except Exception as e:
                     logger.debug(f"Error scanning stream keys: {e}")
                 
-                # Add total count
+                # Now collect VOD streams
+                try:
+                    from apps.vod.models import Movie, Episode
+                    
+                    pattern = "vod_persistent_connection:*"
+                    for key in self.redis_client.scan_iter(match=pattern):
+                        try:
+                            connection_data = self.redis_client.hgetall(key)
+                            if not connection_data:
+                                continue
+                            
+                            # Handle both bytes and string keys
+                            if isinstance(list(connection_data.keys())[0], bytes):
+                                def get_vod_field(field_name, default=''):
+                                    val = connection_data.get(field_name.encode('utf-8') if isinstance(field_name, str) else field_name, b'')
+                                    return val.decode('utf-8') if isinstance(val, bytes) else default
+                            else:
+                                def get_vod_field(field_name, default=''):
+                                    return connection_data.get(field_name, default)
+                            
+                            # Only process connections with active streams
+                            active_stream_count = int(get_vod_field('active_streams', '0'))
+                            if active_stream_count == 0:
+                                continue
+                            
+                            active_streams += 1  # Add to total count
+                            active_vod_streams += 1  # Add to VOD count
+                            
+                            # Extract VOD session information
+                            session_id = key.decode('utf-8') if isinstance(key, bytes) else key
+                            session_id = session_id.replace('vod_persistent_connection:', '')
+                            
+                            # Extract numeric channel_number from session_id (format: vod_TIMESTAMP_RANDOMNUM)
+                            # Use the timestamp portion as a numeric identifier
+                            try:
+                                session_parts = session_id.split('_')
+                                if len(session_parts) >= 2:
+                                    vod_channel_number = session_parts[1]  # Extract timestamp
+                                else:
+                                    vod_channel_number = session_id  # Fallback to full session_id
+                            except Exception:
+                                vod_channel_number = session_id  # Fallback to full session_id
+                            
+                            content_type = get_vod_field('content_obj_type', 'unknown')
+                            content_uuid = get_vod_field('content_uuid', '')
+                            content_name = get_vod_field('content_name', 'Unknown')  # Will be overridden below
+                            
+                            # Get M3U profile information first (needed for category lookups)
+                            m3u_profile_id_str = get_vod_field('m3u_profile_id', '')
+                            
+                            # Query actual content object for additional metadata (logo, video info, category, programming info, etc.)
+                            logo_url = ""
+                            video_codec = ""
+                            resolution = ""
+                            stream_profile_name = ""  # VOD doesn't store transcode profile in Redis
+                            season_number = None
+                            episode_number = None
+                            series_name = None
+                            channel_group = ""  # Default category
+                            
+                            # Programming information (for dispatcharr_stream_programming metric)
+                            prog_title = ""
+                            prog_subtitle = ""
+                            prog_description = ""
+                            prog_year = ""
+                            prog_rating = ""
+                            prog_genre = ""
+                            prog_duration_secs = 0
+                            prog_air_date = ""
+                            
+                            try:
+                                if content_type == 'movie':
+                                    from apps.vod.models import M3UMovieRelation
+                                    content_obj = Movie.objects.select_related('logo').get(uuid=content_uuid)
+                                    
+                                    # Get logo URL if available
+                                    if hasattr(content_obj, 'logo') and content_obj.logo:
+                                        logo_url = f"/api/vod/vodlogos/{content_obj.logo.id}/cache/"
+                                        # Add base URL if provided
+                                        base_url = settings.get('base_url', '').strip() if settings else ''
+                                        if base_url:
+                                            logo_url = f"{base_url.rstrip('/')}{logo_url}"
+                                    
+                                    # Try to get video metadata from custom_properties
+                                    if content_obj.custom_properties:
+                                        video_info = content_obj.custom_properties.get('video', {})
+                                        if video_info:
+                                            video_codec = video_info.get('codec_name', '')
+                                            width = video_info.get('width')
+                                            height = video_info.get('height')
+                                            if width and height:
+                                                resolution = f"{width}x{height}"
+                                    
+                                    # Override channel_name with just the movie name (not the Redis formatted version)
+                                    content_name = content_obj.name
+                                    
+                                    # Get programming information from Movie model
+                                    prog_title = content_obj.name  # Use raw name, will escape later
+                                    prog_description = content_obj.description or ""
+                                    prog_year = str(content_obj.year) if content_obj.year else ""
+                                    prog_rating = content_obj.rating or ""
+                                    prog_genre = content_obj.genre or ""
+                                    prog_duration_secs = content_obj.duration_secs or 0
+                                    
+                                    # Strip year from title if present to avoid duplication
+                                    # Movie names often contain the year like "Bohemian Rhapsody (2018)" or "Movie Name - 2018"
+                                    if prog_year:
+                                        # Try to strip patterns like " (2018)" or " - 2018" from the end
+                                        year_patterns = [f" ({prog_year})", f" - {prog_year}", f" {prog_year}"]
+                                        for pattern in year_patterns:
+                                            if prog_title.endswith(pattern):
+                                                prog_title = prog_title[:-len(pattern)].strip()
+                                                break
+                                    
+                                    # Build subtitle: "Year - Genre"
+                                    subtitle_parts = []
+                                    if prog_year:
+                                        subtitle_parts.append(prog_year)
+                                    if prog_genre:
+                                        subtitle_parts.append(prog_genre)
+                                    prog_subtitle = " - ".join(subtitle_parts)
+                                    
+                                    # Get category from M3U relation (use provider from session if available)
+                                    if m3u_profile_id_str:
+                                        try:
+                                            relation = M3UMovieRelation.objects.select_related('category').filter(
+                                                movie=content_obj,
+                                                m3u_account__profiles__id=int(m3u_profile_id_str)
+                                            ).first()
+                                            if relation and relation.category:
+                                                channel_group = relation.category.name.replace('"', '\\"').replace('\\', '\\\\')
+                                        except Exception:
+                                            pass
+                                
+                                elif content_type == 'episode':
+                                    from apps.vod.models import M3USeriesRelation
+                                    content_obj = Episode.objects.select_related('series', 'series__logo').get(uuid=content_uuid)
+                                    season_number = content_obj.season_number
+                                    episode_number = content_obj.episode_number
+                                    
+                                    # Override channel_name with just the series name (not the Redis formatted version)
+                                    if content_obj.series:
+                                        content_name = content_obj.series.name
+                                        series_name = content_obj.series.name.replace('"', '\\"').replace('\\', '\\\\')
+                                    else:
+                                        series_name = None
+                                    
+                                    # Get series logo if available
+                                    if hasattr(content_obj.series, 'logo') and content_obj.series.logo:
+                                        logo_url = f"/api/vod/vodlogos/{content_obj.series.logo.id}/cache/"
+                                        # Add base URL if provided
+                                        base_url = settings.get('base_url', '').strip() if settings else ''
+                                        if base_url:
+                                            logo_url = f"{base_url.rstrip('/')}{logo_url}"
+                                    
+                                    # Try to get video metadata from custom_properties
+                                    if content_obj.custom_properties:
+                                        video_info = content_obj.custom_properties.get('video', {})
+                                        if video_info:
+                                            video_codec = video_info.get('codec_name', 'unknown')
+                                            width = video_info.get('width')
+                                            height = video_info.get('height')
+                                            if width and height:
+                                                resolution = f"{width}x{height}"
+                                    
+                                    # Get programming information from Episode model
+                                    prog_title = content_obj.series.name if content_obj.series else ""  # Series name as title
+                                    prog_description = content_obj.description or ""
+                                    prog_rating = content_obj.rating or ""
+                                    prog_duration_secs = content_obj.duration_secs or 0
+                                    prog_air_date = content_obj.air_date.isoformat() if content_obj.air_date else ""
+                                    
+                                    # Build subtitle: Remove series name prefix from episode name to avoid duplication
+                                    # Episode.name often contains "Series Name - S01E03 - Episode Title" or 
+                                    # "Series Name (Year) - Series Name - S01E03 - Episode Title"
+                                    # We need to strip both the series name with year AND without year
+                                    prog_subtitle = content_obj.name
+                                    if prog_title and prog_subtitle.startswith(prog_title):
+                                        # Strip exact series name (with year) and the following " - " separator
+                                        prog_subtitle = prog_subtitle[len(prog_title):].lstrip(' -')
+                                    
+                                    # Also try to strip the series name without year (common in episode names)
+                                    # Extract series name without year suffix like " (2009)"
+                                    series_name_no_year = prog_title
+                                    if prog_title:
+                                        import re
+                                        # Match patterns like " (2009)" at the end
+                                        match = re.search(r'\s*\(\d{4}\)$', prog_title)
+                                        if match:
+                                            series_name_no_year = prog_title[:match.start()].strip()
+                                    
+                                    # Strip series name without year if present
+                                    if series_name_no_year and prog_subtitle.startswith(series_name_no_year):
+                                        prog_subtitle = prog_subtitle[len(series_name_no_year):].lstrip(' -')
+                                    
+                                    # Log for debugging
+                                    season_str = f"S{season_number:02d}" if season_number else "S00"
+                                    episode_str = f"E{episode_number:02d}" if episode_number else "E00"
+                                    logger.debug(f"VOD Episode programming: title='{prog_title}', subtitle='{prog_subtitle}', duration={prog_duration_secs}")
+                                    
+                                    # Get category from series M3U relation (use provider from session if available)
+                                    if m3u_profile_id_str and content_obj.series:
+                                        try:
+                                            relation = M3USeriesRelation.objects.select_related('category').filter(
+                                                series=content_obj.series,
+                                                m3u_account__profiles__id=int(m3u_profile_id_str)
+                                            ).first()
+                                            if relation and relation.category:
+                                                channel_group = relation.category.name.replace('"', '\\"').replace('\\', '\\\\')
+                                        except Exception:
+                                            pass
+                            except (Movie.DoesNotExist, Episode.DoesNotExist):
+                                logger.debug(f"VOD content {content_type} {content_uuid} not found in database")
+                            except Exception as e:
+                                logger.error(f"Error querying VOD content metadata for {content_uuid}: {e}", exc_info=True)
+                            
+                            # Escape content_name and logo_url for Prometheus labels
+                            content_name = content_name.replace('"', '\\"').replace('\\', '\\\\')
+                            logo_url = logo_url.replace('"', '\\"').replace('\\', '\\\\')
+                            
+                            # Get M3U profile information (already fetched above, now just use it)
+                            profile_id = None
+                            profile_name = ""
+                            profile_connections = 0
+                            profile_max = 0
+                            provider_name = ""
+                            provider_type = ""
+                           
+                            if m3u_profile_id_str:
+                                try:
+                                    profile_id = int(m3u_profile_id_str)
+                                    active_profile = M3UAccountProfile.objects.get(id=profile_id)
+                                    profile_name = active_profile.name.replace('"', '\\"').replace('\\', '\\\\')
+                                    provider_name = active_profile.m3u_account.name.replace('"', '\\"').replace('\\', '\\\\')
+                                    provider_type = active_profile.m3u_account.account_type
+                                    profile_connections = int(self.redis_client.get(f"profile_connections:{profile_id}") or 0)
+                                    profile_max = active_profile.max_streams
+                                except Exception as e:
+                                    logger.debug(f"Error getting VOD M3U profile {m3u_profile_id_str}: {e}")
+                            
+                            # Note: VOD doesn't store stream_profile_id (transcode profile) in Redis
+                            # stream_profile_name remains empty unless VOD transcoding is implemented differently
+                            
+                            # Calculate uptime
+                            created_at = float(get_vod_field('created_at', '0'))
+                            uptime_seconds = int(time.time() - created_at) if created_at > 0 else 0
+                            
+                            # Get transfer statistics
+                            bytes_sent = int(get_vod_field('bytes_sent', '0'))
+                            total_mb = round(bytes_sent / 1024 / 1024, 2)
+                            
+                            # Calculate average bitrate
+                            avg_bitrate_bps = round((bytes_sent * 8 / uptime_seconds), 2) if uptime_seconds > 0 else 0
+                            
+                            # VOD doesn't have real-time client tracking in the same way, but we know active_streams
+                            active_clients = active_stream_count
+                            
+                            # Build minimal base labels for VOD (matching live TV pattern)
+                            # Use full session_id as channel_uuid for uniqueness, numeric timestamp as channel_number
+                            base_labels = [
+                                f'type="vod"',
+                                f'channel_uuid="{session_id}"',
+                                f'channel_number="{vod_channel_number}"'
+                            ]
+                            base_labels_str = ",".join(base_labels)
+                            
+                            # Build metadata labels for VOD (matching live TV pattern)
+                            metadata_labels = base_labels + [
+                                f'content_uuid="{content_uuid}"',
+                                f'channel_name="{content_name}"',
+                                f'channel_group="{channel_group}"',
+                                f'content_type="{content_type}"',  # Keep for filtering movies vs episodes
+                                f'provider="{provider_name}"',
+                                f'provider_type="{provider_type}"',
+                                f'state="active"',  # VOD connections are always active if they exist
+                                f'logo_url="{logo_url}"',
+                                f'profile_id="{profile_id if profile_id else "none"}"',
+                                f'profile_name="{profile_name}"',
+                                f'stream_profile="{stream_profile_name}"',
+                                f'video_codec="{video_codec}"',
+                                f'resolution="{resolution}"'
+                            ]
+                            
+                            # Add episode-specific labels if applicable
+                            if content_type == 'episode' and season_number is not None and episode_number is not None:
+                                metadata_labels.append(f'season_number="{season_number}"')
+                                metadata_labels.append(f'episode_number="{episode_number}"')
+                                if series_name:
+                                    metadata_labels.append(f'series_name="{series_name}"')
+                            
+                            # Add stream ID metric (using session_id as the identifier)
+                            stream_value_metrics.append(
+                                f'dispatcharr_stream_id{{{base_labels_str}}} 0'  # VOD uses session_id in labels, value doesn't matter
+                            )
+                            
+                            # Add metadata metric
+                            stream_value_metrics.append(
+                                f'dispatcharr_stream_metadata{{{",".join(metadata_labels)}}} 1'
+                            )
+                            
+                            # Add uptime metric
+                            stream_value_metrics.append(
+                                f'dispatcharr_stream_uptime_seconds{{{base_labels_str}}} {uptime_seconds}'
+                            )
+                            
+                            # Add active clients metric
+                            stream_value_metrics.append(
+                                f'dispatcharr_stream_active_clients{{{base_labels_str}}} {active_clients}'
+                            )
+                            
+                            # Add bitrate metrics
+                            if avg_bitrate_bps > 0:
+                                stream_value_metrics.append(
+                                    f'dispatcharr_stream_avg_bitrate_bps{{{base_labels_str}}} {avg_bitrate_bps}'
+                                )
+                            
+                            # Add transfer metric
+                            if total_mb > 0:
+                                stream_value_metrics.append(
+                                    f'dispatcharr_stream_total_transfer_mb{{{base_labels_str}}} {total_mb}'
+                                )
+                            
+                            # Add profile connection metrics
+                            if profile_id:
+                                stream_value_metrics.append(
+                                    f'dispatcharr_stream_profile_connections{{{base_labels_str}}} {profile_connections}'
+                                )
+                                stream_value_metrics.append(
+                                    f'dispatcharr_stream_profile_max_connections{{{base_labels_str}}} {profile_max}'
+                                )
+                            
+                            # Add programming metric (similar to live TV EPG data) if we have content info
+                            logger.debug(f"VOD Programming check for {session_id}: prog_title='{prog_title}', prog_description='{prog_description[:50] if prog_description else ''}'")
+                            if prog_title or prog_description:
+                                try:
+                                    from datetime import datetime, timezone, timedelta
+                                    
+                                    logger.debug(f"Entering programming metric generation for {session_id}")
+                                    
+                                    # Helper function to escape special characters (same as live TV)
+                                    def escape_label_value(value):
+                                        """Escape special characters for Prometheus label values"""
+                                        if not value:
+                                            return ""
+                                        # Order is critical: escape backslashes first, then quotes, then newlines
+                                        return value.replace('\\', '\\\\').replace('"', '\\"').replace('\n', '\\n')
+                                    
+                                    # Escape all programming strings
+                                    prog_title_safe = escape_label_value(prog_title)
+                                    prog_subtitle_safe = escape_label_value(prog_subtitle)
+                                    prog_description_safe = escape_label_value(prog_description)
+                                    
+                                    logger.debug(f"Escaped label values - title: '{prog_title_safe[:30]}', subtitle: '{prog_subtitle_safe[:30]}'")
+                                    
+                                    # Calculate start and end times based on VOD connection
+                                    # Start time = when connection was created
+                                    # End time = start + duration (estimated completion)
+                                    prog_start_time = ""
+                                    prog_end_time = ""
+                                    if created_at > 0:
+                                        start_dt = datetime.fromtimestamp(created_at, tz=timezone.utc)
+                                        prog_start_time = start_dt.isoformat()
+                                        
+                                        # Calculate estimated end time if we have duration
+                                        if prog_duration_secs > 0:
+                                            end_dt = start_dt + timedelta(seconds=prog_duration_secs)
+                                            prog_end_time = end_dt.isoformat()
+                                    
+                                    logger.debug(f"Times calculated - start: '{prog_start_time}', end: '{prog_end_time}', duration: {prog_duration_secs}")
+                                    
+                                    # Build programming labels (reusing live TV field names)
+                                    # Leave previous_* and next_* empty (could be used for previous/next episodes in future)
+                                    programming_labels = base_labels + [
+                                        'previous_title=""',
+                                        'previous_subtitle=""',
+                                        'previous_description=""',
+                                        'previous_start_time=""',
+                                        'previous_end_time=""',
+                                        f'current_title="{prog_title_safe}"',
+                                        f'current_subtitle="{prog_subtitle_safe}"',
+                                        f'current_description="{prog_description_safe}"',
+                                        f'current_start_time="{prog_start_time}"',
+                                        f'current_end_time="{prog_end_time}"',
+                                        'next_title=""',
+                                        'next_subtitle=""',
+                                        'next_description=""',
+                                        'next_start_time=""',
+                                        'next_end_time=""'
+                                    ]
+                                    
+                                    # Calculate progress (0.0 to 1.0)
+                                    # Use time-based progress if we have duration, otherwise 0.0
+                                    progress = 0.0
+                                    if prog_duration_secs > 0 and uptime_seconds > 0:
+                                        progress = min(1.0, max(0.0, uptime_seconds / prog_duration_secs))
+                                    
+                                    logger.debug(f"Progress calculated: {progress:.4f} (uptime: {uptime_seconds}, duration: {prog_duration_secs})")
+                                    
+                                    # Add programming metric with progress as the value
+                                    programming_metric = f'dispatcharr_stream_programming{{{",".join(programming_labels)}}} {progress:.4f}'
+                                    logger.debug(f"Programming metric generated, length: {len(programming_metric)}, first 200 chars: {programming_metric[:200]}")
+                                    stream_value_metrics.append(programming_metric)
+                                    logger.debug(f"Programming metric appended successfully for {session_id}")
+                                except Exception as prog_e:
+                                    logger.error(f"Error generating programming metric for {session_id}: {prog_e}", exc_info=True)
+                        
+                        except Exception as e:
+                            logger.debug(f"Error processing VOD connection key {key}: {e}")
+                
+                except Exception as e:
+                    logger.debug(f"Error scanning VOD connection keys: {e}")
+                
+                # Add total count (live + VOD)
                 metrics.append(f"dispatcharr_active_streams {active_streams}")
+                
+                # Add active streams by type
+                metrics.append(f'dispatcharr_active_streams{{type="live"}} {active_live_streams}')
+                metrics.append(f'dispatcharr_active_streams{{type="vod"}} {active_vod_streams}')
                 
                 # Add stream info metrics (static labels)
                 for metric in stream_info_metrics:
@@ -925,9 +1374,9 @@ class PrometheusMetricsCollector:
             from apps.channels.models import Channel
             
             # Client metrics headers
-            metrics.append("# HELP dispatcharr_active_clients Total number of active client connections")
+            metrics.append("# HELP dispatcharr_active_clients Total number of active client connections (live and VOD)")
             metrics.append("# TYPE dispatcharr_active_clients gauge")
-            metrics.append("# HELP dispatcharr_client_info Client connection metadata")
+            metrics.append("# HELP dispatcharr_client_info Client connection metadata (type: live/vod)")
             metrics.append("# TYPE dispatcharr_client_info gauge")
             metrics.append("# HELP dispatcharr_client_connection_duration_seconds Duration of client connection in seconds")
             metrics.append("# TYPE dispatcharr_client_connection_duration_seconds gauge")
@@ -1051,6 +1500,7 @@ class PrometheusMetricsCollector:
                                 
                                 # Minimal labels for joining
                                 base_labels = [
+                                    f'type="live"',
                                     f'client_id="{client_id_safe}"',
                                     f'channel_uuid="{channel_uuid}"',
                                     f'channel_number="{channel_number}"'
@@ -1087,49 +1537,137 @@ class PrometheusMetricsCollector:
                 if cursor == 0:
                     break
             
-            # Total count, then individual metrics
+            # Now collect VOD clients
+            try:
+                # VOD clients are the active_streams on each VOD connection
+                pattern = "vod_persistent_connection:*"
+                cursor = 0
+                
+                while True:
+                    cursor, keys = self.redis_client.scan(
+                        cursor,
+                        match=pattern,
+                        count=100
+                    )
+                    
+                    for key in keys:
+                        try:
+                            connection_data = self.redis_client.hgetall(key)
+                            if not connection_data:
+                                continue
+                            
+                            # Handle both bytes and string keys
+                            if isinstance(list(connection_data.keys())[0], bytes):
+                                def get_vod_field(field_name, default=''):
+                                    val = connection_data.get(field_name.encode('utf-8') if isinstance(field_name, str) else field_name, b'')
+                                    return val.decode('utf-8') if isinstance(val, bytes) else default
+                            else:
+                                def get_vod_field(field_name, default=''):
+                                    return connection_data.get(field_name, default)
+                            
+                            # Get active streams count (represents multiple HTTP connections from same client)
+                            active_stream_count = int(get_vod_field('active_streams', '0'))
+                            if active_stream_count == 0:
+                                continue
+                            
+                            # Each VOD session counts as one client (even if multiple active_streams)
+                            total_clients += 1
+                            
+                            # Extract session information
+                            session_id = key.decode('utf-8') if isinstance(key, bytes) else key
+                            session_id = session_id.replace('vod_persistent_connection:', '')
+                            
+                            # Extract numeric channel_number from session_id (format: vod_TIMESTAMP_RANDOMNUM)
+                            # Use the timestamp portion as a numeric identifier (matching stream metrics)
+                            try:
+                                session_parts = session_id.split('_')
+                                if len(session_parts) >= 2:
+                                    vod_channel_number = session_parts[1]  # Extract timestamp
+                                else:
+                                    vod_channel_number = session_id  # Fallback to full session_id
+                            except Exception:
+                                vod_channel_number = session_id  # Fallback to full session_id
+                            
+                            content_type = get_vod_field('content_obj_type', 'unknown')
+                            content_uuid = get_vod_field('content_uuid', '')
+                            content_name = get_vod_field('content_name', 'Unknown')
+                            client_ip = get_vod_field('client_ip', 'unknown')
+                            client_user_agent = get_vod_field('client_user_agent', 'unknown')
+                            worker_id = get_vod_field('worker_id', 'unknown')
+                            
+                            # Escape special characters
+                            session_id_safe = session_id.replace('"', '\\"').replace('\\', '\\\\')
+                            vod_channel_number_safe = vod_channel_number.replace('"', '\\"').replace('\\', '\\\\')
+                            content_name_safe = content_name.replace('"', '\\"').replace('\\', '\\\\')
+                            client_ip_safe = client_ip.replace('"', '\\"').replace('\\', '\\\\')
+                            client_user_agent_safe = client_user_agent.replace('"', '\\"').replace('\\', '\\\\').replace('\n', ' ').replace('\r', '')
+                            worker_id_safe = worker_id.replace('"', '\\"').replace('\\', '\\\\')
+                            
+                            # Calculate connection duration
+                            connection_duration = 0
+                            created_at = float(get_vod_field('created_at', '0'))
+                            if created_at > 0:
+                                connection_duration = int(current_time - created_at)
+                            
+                            # Get transfer statistics
+                            bytes_sent = int(get_vod_field('bytes_sent', '0'))
+                            
+                            # Calculate bitrates
+                            avg_rate_bps = 0.0
+                            if connection_duration > 0 and bytes_sent > 0:
+                                avg_rate_bps = round((bytes_sent * 8 / connection_duration), 2)
+                            
+                            # Create single client metric for this VOD session
+                            # (active_streams represents multiple HTTP requests from same user, not multiple users)
+                            client_id_safe = session_id_safe
+                            
+                            # Minimal labels for joining (matching live TV pattern)
+                            base_labels = [
+                                f'type="vod"',
+                                f'client_id="{client_id_safe}"',
+                                f'channel_uuid="{session_id_safe}"',
+                                f'channel_number="{vod_channel_number_safe}"'
+                            ]
+                            base_labels_str = ','.join(base_labels)
+                            
+                            # Info metric with all metadata
+                            info_labels = base_labels + [
+                                f'content_uuid="{content_uuid}"',
+                                f'channel_name="{content_name_safe}"',
+                                f'content_type="{content_type}"',
+                                f'ip_address="{client_ip_safe}"',
+                                f'user_agent="{client_user_agent_safe}"',
+                                f'worker_id="{worker_id_safe}"'
+                            ]
+                            client_metrics.append(f'dispatcharr_client_info{{{",".join(info_labels)}}} 1')
+                            
+                            # Value metrics with minimal labels
+                            if connection_duration > 0:
+                                client_metrics.append(f'dispatcharr_client_connection_duration_seconds{{{base_labels_str}}} {connection_duration}')
+                            
+                            if bytes_sent > 0:
+                                client_metrics.append(f'dispatcharr_client_bytes_sent{{{base_labels_str}}} {bytes_sent}')
+                            
+                            if avg_rate_bps > 0:
+                                client_metrics.append(f'dispatcharr_client_avg_transfer_rate_bps{{{base_labels_str}}} {avg_rate_bps:.2f}')
+                                # For VOD, use average rate as current rate (VOD bitrate is typically stable)
+                                client_metrics.append(f'dispatcharr_client_current_transfer_rate_bps{{{base_labels_str}}} {avg_rate_bps:.2f}')
+                        
+                        except Exception as e:
+                            logger.debug(f"Error processing VOD connection for clients: {e}")
+                    
+                    if cursor == 0:
+                        break
+            
+            except Exception as e:
+                logger.debug(f"Error scanning VOD connections for clients: {e}")
+            
+            # Total count (live + VOD), then individual metrics
             metrics.append(f"dispatcharr_active_clients {total_clients}")
             metrics.extend(client_metrics)
             
         except Exception as e:
             logger.error(f"Error collecting client metrics: {e}")
-        
-        metrics.append("")
-        return metrics
-
-    def _collect_vod_metrics(self) -> list:
-        """Collect VOD (Video on Demand) statistics"""
-        metrics = []
-        metrics.append("# HELP dispatcharr_vod_sessions Total number of VOD sessions")
-        metrics.append("# TYPE dispatcharr_vod_sessions gauge")
-        metrics.append("# HELP dispatcharr_vod_active_streams Total number of active VOD streams")
-        metrics.append("# TYPE dispatcharr_vod_active_streams gauge")
-        
-        try:
-            if self.redis_client:
-                # Count VOD sessions
-                vod_sessions = 0
-                active_vod_streams = 0
-                
-                pattern = "vod_session:*"
-                try:
-                    for key in self.redis_client.scan_iter(match=pattern):
-                        vod_sessions += 1
-                        # Try to get active streams count from session data
-                        try:
-                            session_data = self.redis_client.hgetall(key)
-                            if session_data:
-                                active_streams = int(session_data.get(b'active_streams', 0))
-                                active_vod_streams += active_streams
-                        except Exception as e:
-                            logger.debug(f"Error reading session data for {key}: {e}")
-                except Exception as e:
-                    logger.debug(f"Error scanning VOD session keys: {e}")
-                
-                metrics.append(f"dispatcharr_vod_sessions {vod_sessions}")
-                metrics.append(f"dispatcharr_vod_active_streams {active_vod_streams}")
-        except Exception as e:
-            logger.error(f"Error collecting VOD metrics: {e}")
         
         metrics.append("")
         return metrics
@@ -1624,13 +2162,6 @@ class Plugin:
             "type": "boolean",
             "default": False,
             "description": "Include EPG source and status metrics in the output"
-        },
-        {
-            "id": "include_vod_stats",
-            "label": "Include VOD Statistics",
-            "type": "boolean",
-            "default": False,
-            "description": "Include VOD session and stream metrics in the output"
         },
         {
             "id": "include_client_stats",
