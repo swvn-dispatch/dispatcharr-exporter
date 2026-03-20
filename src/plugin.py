@@ -42,7 +42,7 @@ def _load_plugin_config():
         logger.warning(f"Could not load plugin.json, using fallback config: {e}")
         # Fallback configuration if JSON can't be loaded
         return {
-            "version": "-dev-52e4c719-20260320115415",
+            "version": "-dev-df7a2284-20260320120059",
             "name": "Dispatcharr Exporter",
             "author": "SethWV",
             "description": "Expose Dispatcharr metrics in Prometheus exporter-compatible format for monitoring",
@@ -937,10 +937,8 @@ class PrometheusMetricsCollector:
                             prog_subtitle = ""
                             prog_description = ""
                             prog_year = ""
-                            prog_rating = ""
                             prog_genre = ""
                             prog_duration_secs = 0
-                            prog_air_date = ""
                             
                             try:
                                 if content_type == 'movie':
@@ -1464,7 +1462,7 @@ class PrometheusMetricsCollector:
                                     connected_at = float(connected_at_str)
                                     connection_duration = int(current_time - connected_at)
                                 except (ValueError, TypeError):
-                                    pass
+                                    pass  # Invalid timestamp format
                                 
                                 # Get transfer statistics
                                 bytes_sent = 0
@@ -1472,7 +1470,7 @@ class PrometheusMetricsCollector:
                                 try:
                                     bytes_sent = int(bytes_sent_str)
                                 except (ValueError, TypeError):
-                                    pass
+                                    pass  # Invalid bytes_sent value
                                 
                                 avg_rate_bps = 0.0
                                 avg_rate_str = get_client_field('avg_rate_KBps', '0')
@@ -2346,14 +2344,23 @@ class Plugin:
             # Try to acquire lock - only ONE worker across all processes should succeed
             # Note: lock_fd must stay open to maintain the lock throughout server lifetime
             lock_fd = None
+            lock_acquired = False
             try:
-                # Create lock file - readable/writable by owner and group only
+                # Create lock file - readable/writable by owner only (not world-readable)
                 lock_fd = open(lock_file, 'w')
                 try:
-                    os.chmod(lock_file, 0o644)  # Security: Not world-writable (was 0o666)
+                    os.chmod(lock_file, 0o600)  # Security: Owner-only access (not world-readable)
                 except OSError:
                     pass  # chmod might fail if we don't own the file
-                fcntl.flock(lock_fd.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+                
+                try:
+                    fcntl.flock(lock_fd.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+                    lock_acquired = True
+                except BlockingIOError:
+                    # Another worker already has the lock
+                    lock_fd.close()
+                    logger.debug("Prometheus exporter: Auto-start already being handled by another worker")
+                    return
                 
                 logger.debug("Prometheus exporter: Lock acquired, checking config for auto-start")
                 
@@ -2459,14 +2466,18 @@ class Plugin:
                     fcntl.flock(lock_fd.fileno(), fcntl.LOCK_UN)
                     lock_fd.close()
                 
-            except BlockingIOError:
-                # Another worker already has the lock and is handling auto-start
-                logger.debug("Prometheus exporter: Auto-start already being handled by another worker")
             except Exception as e:
-                logger.warning(f"Prometheus exporter: Auto-start lock acquisition failed: {e}")
-                if lock_fd:
+                # Any error during lock acquisition or auto-start
+                logger.warning(f"Prometheus exporter: Auto-start failed: {e}")
+                if lock_fd and lock_acquired:
                     try:
                         fcntl.flock(lock_fd.fileno(), fcntl.LOCK_UN)
+                        lock_fd.close()
+                    except Exception:
+                        pass  # Best effort cleanup
+                elif lock_fd:
+                    # File opened but lock not acquired
+                    try:
                         lock_fd.close()
                     except Exception:
                         pass  # Best effort cleanup
@@ -2617,9 +2628,6 @@ class Plugin:
 
         elif action == "restart_server":
             try:
-                # First, stop the server
-                stopped_local = False
-                
                 # Try to stop local instance first
                 if _metrics_server and _metrics_server.is_running():
                     _metrics_server.stop()
