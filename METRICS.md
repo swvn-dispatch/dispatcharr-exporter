@@ -388,7 +388,7 @@ dispatcharr_stream_current_bitrate_bps{channel_uuid="12572661-bc4b-4937-8501-665
 dispatcharr_stream_total_transfer_mb{channel_uuid="12572661-bc4b-4937-8501-665c8a4ca1e1",channel_number="1001.0"} 4096.25
 ```
 
-### Context Metrics (For Enrichment)
+### Context Metrics
 
 All context metrics use minimal labels (`channel_uuid`, `channel_number`) for consistency.
 
@@ -443,14 +443,14 @@ dispatcharr_stream_index{channel_uuid="12572661-bc4b-4937-8501-665c8a4ca1e1",cha
 - `channel_uuid` - Channel UUID
 - `channel_number` - Channel number
 
-**Description:** Total number of streams configured for this channel. Useful with `dispatcharr_stream_index` to detect when channel is on its last available stream.
+**Description:** Total number of streams configured for this channel.
 
 **Example:**
 ```
 dispatcharr_stream_available_streams{channel_uuid="12572661-bc4b-4937-8501-665c8a4ca1e1",channel_number="1001.0"} 3
 ```
 
-**Useful queries:**
+**Example queries:**
 ```promql
 # Remaining backup streams available
 dispatcharr_stream_available_streams - dispatcharr_stream_index - 1
@@ -481,7 +481,7 @@ dispatcharr_stream_index >= dispatcharr_stream_available_streams - 1
 - VOD-specific: `content_uuid`, `content_type` (movie/episode)
 - Episode-specific: `season_number`, `episode_number`, `series_name`
 
-**Description:** Full metadata for the active stream. Use for joining to enrich other metrics. Note: Unknown/unavailable values are empty strings, not "unknown".
+**Description:** Full metadata for the active stream. Unknown/unavailable values are empty strings, not "unknown".
 
 **Example (Live):**
 ```
@@ -554,7 +554,7 @@ dispatcharr_stream_programming{type="vod",channel_uuid="vod_1771265648474_7145",
 dispatcharr_stream_programming{type="vod",channel_uuid="vod_1771265648475_8156",channel_number="1771265648475",previous_title="",previous_subtitle="",previous_description="",previous_start_time="",previous_end_time="",current_title="Breaking Bad",current_subtitle="S03E05 - Más",current_description="Gus increases his efforts to lure Walt back into business, forcing a rift between Walt and Jesse.",current_start_time="2026-02-16T20:15:22+00:00",current_end_time="2026-02-16T21:02:22+00:00",next_title="",next_subtitle="",next_description="",next_start_time="",next_end_time=""} 0.1852
 ```
 
-**Useful queries:**
+**Example queries:**
 ```promql
 # Time remaining in current program/content (minutes) - Live TV
 (1 - dispatcharr_stream_programming{type="live"}) * 
@@ -613,7 +613,7 @@ dispatcharr_active_clients 15
 - `user_agent` - Client user agent string
 - `worker_id` - Dispatcharr worker ID handling the connection
 
-**Description:** Metadata for each connected client. Use for enrichment joins with other client metrics. Join with `dispatcharr_stream_metadata` to get channel name.
+**Description:** Metadata for each connected client. Join with `dispatcharr_stream_metadata` on `channel_uuid` to get channel name.
 
 **Example:**
 ```
@@ -876,7 +876,7 @@ dispatcharr_client_current_transfer_rate_bps{type="vod",client_id="vod_177126564
 
 *Optional metrics - disabled by default via `include_user_stats` setting*
 
-**Note:** These metrics expose user account information. Only enable in trusted/private environments.
+These metrics expose user account information. Only enable on private networks.
 
 ### `dispatcharr_user_info`
 **Type:** gauge  
@@ -888,7 +888,7 @@ dispatcharr_client_current_transfer_rate_bps{type="vod",client_id="vod_177126564
 - `is_staff` - Django staff flag (`"true"` / `"false"`)
 - `date_joined` - Unix timestamp when the account was created
 
-**Description:** Static metadata for each active Dispatcharr user. Use as an info metric for joins with other user metrics.
+**Description:** Per-user static information. Join with other user metrics on `user_id`.
 
 **Example:**
 ```
@@ -933,7 +933,7 @@ dispatcharr_user_active_streams{user_id="2",username="bob"} 2
 - `user_id` - Dispatcharr user ID
 - `username` - Username
 
-**Description:** When each user last authenticated. Useful for detecting inactive accounts.
+**Description:** Unix timestamp of each user's last login. 0 if the user has never logged in.
 
 **Example:**
 ```
@@ -941,9 +941,9 @@ dispatcharr_user_last_login_timestamp{user_id="1",username="alice"} 1743400000
 dispatcharr_user_last_login_timestamp{user_id="2",username="bob"} 0
 ```
 
-**Useful PromQL patterns:**
+**Example queries:**
 ```promql
-# Stream usage ratio (0–1) per user — requires stream_limit > 0
+# Stream usage ratio per user (requires stream_limit > 0)
 dispatcharr_user_active_streams / dispatcharr_user_stream_limit > 0
 
 # Users at or over their stream limit

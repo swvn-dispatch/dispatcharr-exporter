@@ -80,7 +80,7 @@ class MetricsServer:
                 time.sleep(0.2)
 
         logger.warning(
-            f"Port {self.port} still in use after {timeout}s — server may not have stopped cleanly"
+            f"Port {self.port} still in use after {timeout}s - server may not have stopped cleanly"
         )
         return False
 

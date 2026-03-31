@@ -358,7 +358,7 @@ class PrometheusMetricsCollector:
         metrics.append("# TYPE dispatcharr_stream_index gauge")
         metrics.append("# HELP dispatcharr_stream_available_streams Total number of streams configured for channel (live only)")
         metrics.append("# TYPE dispatcharr_stream_available_streams gauge")
-        metrics.append("# HELP dispatcharr_stream_metadata Stream metadata and enrichment information (type: live/vod, state values: active, waiting_for_clients, buffering, stopping, error, unknown)")
+        metrics.append("# HELP dispatcharr_stream_metadata Stream metadata (type: live/vod, state values: active, waiting_for_clients, buffering, stopping, error, unknown)")
         metrics.append("# TYPE dispatcharr_stream_metadata gauge")
         metrics.append("# HELP dispatcharr_stream_programming Current EPG program information for active streams (live only)")
         metrics.append("# TYPE dispatcharr_stream_programming gauge")
@@ -1363,7 +1363,7 @@ class PrometheusMetricsCollector:
 
         try:
             for user in User.objects.filter(is_active=True).order_by('id'):
-                # Skip users without an XC password — they are internal accounts only
+                # Skip users without an XC password - they have no XC API access
                 if not (user.custom_properties or {}).get('xc_password'):
                     continue
                 uid = user.id

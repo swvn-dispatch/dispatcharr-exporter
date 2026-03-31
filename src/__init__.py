@@ -1,4 +1,4 @@
-"""Dispatcharr Prometheus Exporter — package root.
+"""Dispatcharr Prometheus Exporter - package root.
 
 Dispatcharr discovers the plugin by importing this package and looking for
 the ``Plugin`` class.  All metric collection, server management, and
@@ -24,7 +24,7 @@ logger = logging.getLogger(__name__)
 
 
 class Plugin:
-    """Dispatcharr Plugin — Prometheus metrics exporter."""
+    """Dispatcharr Plugin - Prometheus metrics exporter."""
 
     name        = PLUGIN_CONFIG["name"]
     description = PLUGIN_CONFIG["description"]
@@ -182,7 +182,7 @@ class Plugin:
             except ImportError:
                 return {
                     "status": "error",
-                    "message": "gevent is not installed (unexpected — it is a Dispatcharr dependency)",
+                    "message": "gevent is not installed (unexpected - it is a Dispatcharr dependency)",
                     "instructions": "If running a custom setup, install: pip install gevent",
                 }
 
@@ -245,7 +245,7 @@ class Plugin:
                         redis_client.delete(REDIS_KEY_RUNNING, REDIS_KEY_HOST, REDIS_KEY_PORT, REDIS_KEY_STOP)
                         return {
                             "status": "warning",
-                            "message": "Stop signal sent but server did not confirm. Redis keys cleared — you can now restart.",
+                            "message": "Stop signal sent but server did not confirm. Redis keys cleared - you can now restart.",
                         }
                     except Exception as e:
                         return {"status": "error", "message": f"Failed to signal stop: {str(e)}"}
