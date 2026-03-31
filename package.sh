@@ -15,6 +15,23 @@ PLUGIN_NAME="dispatcharr_exporter"
 OUTPUT_FILE="dispatcharr-exporter.zip"
 TEMP_DIR=$(mktemp -d)
 VERSION=""
+EXPLICIT_VERSION=""
+
+# Parse arguments
+# Usage: ./package.sh [--version X.Y.Z | -v X.Y.Z]
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --version|-v)
+            EXPLICIT_VERSION="$2"
+            shift 2
+            ;;
+        *)
+            echo "Unknown argument: $1"
+            echo "Usage: $0 [--version X.Y.Z]"
+            exit 1
+            ;;
+    esac
+done
 
 # Verify source directory exists
 if [ ! -d "$SRC_DIR" ]; then
@@ -31,20 +48,22 @@ fi
 
 echo "=== Packaging Dispatcharr Prometheus Exporter ==="
 
-# Set dev version if not in CI
-if [ -z "$GITHUB_ACTIONS" ]; then
-    GIT_HASH=$(git rev-parse --short=8 HEAD 2>/dev/null || echo "00000000")
-    TIMESTAMP=$(date +%Y%m%d%H%M%S)
-    VERSION="-dev-${GIT_HASH}-${TIMESTAMP}"
-    
-    echo "Version: $VERSION"
-    
-    # Update version in plugin.json
+# Set version
+if [ -n "$EXPLICIT_VERSION" ]; then
+    VERSION="$EXPLICIT_VERSION"
+    echo "Version: $VERSION (explicit)"
+
     if [[ "$OSTYPE" == "darwin"* ]]; then
         sed -i '' "s/\"version\": \"[^\"]*\"/\"version\": \"$VERSION\"/" "$SRC_DIR/plugin.json"
     else
         sed -i "s/\"version\": \"[^\"]*\"/\"version\": \"$VERSION\"/" "$SRC_DIR/plugin.json"
     fi
+elif [ -z "$GITHUB_ACTIONS" ]; then
+    GIT_HASH=$(git rev-parse --short=8 HEAD 2>/dev/null || echo "00000000")
+    TIMESTAMP=$(date +%Y%m%d%H%M%S)
+    VERSION="-dev-${GIT_HASH}-${TIMESTAMP}"
+    
+    echo "Version: $VERSION"
 else
     # Extract version from plugin.json (set by workflow)
     VERSION=$(grep -oP '"version": "\K[^"]+' "$SRC_DIR/plugin.json" 2>/dev/null || grep -o '"version": "[^"]*"' "$SRC_DIR/plugin.json" | cut -d'"' -f4)
