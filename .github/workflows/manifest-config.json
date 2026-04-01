@@ -1,0 +1,5 @@
+{
+  "slug": "dispatcharr_exporter",
+  "plugin_json": "src/plugin.json",
+  "logo": "src/logo.png"
+}
