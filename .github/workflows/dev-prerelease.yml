@@ -27,13 +27,20 @@ jobs:
 
       - name: Determine dev version
         id: version
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           HASH=$(git rev-parse --short=8 HEAD)
-          # Leading dash → Dispatcharr prepends 'v' → displays as 'v-dev-{sha}'
-          PLUGIN_VERSION="-dev-${HASH}"
+          # Base on latest stable release version so Dispatcharr displays e.g. v3.0.0-dev-e82297bd
+          LATEST=$(gh release list --exclude-pre-releases --limit 1 --json tagName --jq '.[0].tagName // ""')
+          BASE="${LATEST#v}"  # strip leading v if present
+          if [ -z "$BASE" ]; then
+            BASE="0.0.0"
+          fi
+          PLUGIN_VERSION="${BASE}-dev-${HASH}"
           TAG="dev-${HASH}"
-          # package.sh strips the leading dash when naming the zip
-          ZIP="dispatcharr-exporter-dev-${HASH}.zip"
+          # package.sh strips a leading dash; here there's none so zip uses the version as-is
+          ZIP="dispatcharr-exporter-${PLUGIN_VERSION}.zip"
           echo "PLUGIN_VERSION=$PLUGIN_VERSION" >> $GITHUB_OUTPUT
           echo "TAG=$TAG" >> $GITHUB_OUTPUT
           echo "ZIP=$ZIP" >> $GITHUB_OUTPUT
