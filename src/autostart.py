@@ -14,6 +14,12 @@ Replaces the old file-lock (flock / /tmp) mechanism with Redis leader election:
   4. The winner clears any stale Redis state left from a previous lifecycle,
      then starts the MetricsServer.
 
+The per-process guard ``_autostart_launched`` prevents spawning duplicate
+threads *within a single import cycle*, but ``force_reload=True`` in
+Dispatcharr's plugin loader re-imports all modules, resetting module-level
+state.  To handle that, the autostart thread also checks Redis for an
+already-running server before doing anything destructive.
+
 No /tmp files, no flock(), no global retry counters.
 """
 
@@ -128,6 +134,13 @@ def _autostart_worker(collector) -> None:
     redis_client = get_redis_client()
     if redis_client is None:
         logger.warning("Prometheus exporter: cannot connect to Redis, aborting auto-start")
+        return
+
+    # Guard: if the server is already running (e.g. we were force-reloaded
+    # and the old daemon thread is still alive), skip everything.  This
+    # prevents cleanup_stale_state from nuking keys for a live server.
+    if redis_client.get(REDIS_KEY_RUNNING):
+        logger.debug("Prometheus exporter: server already running (Redis), skipping auto-start")
         return
 
     worker_id = f"{os.getpid()}-{threading.get_ident()}"

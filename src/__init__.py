@@ -297,6 +297,27 @@ class Plugin:
 
         return {"status": "error", "message": f"Unknown action: {action}"}
 
+    def stop(self, context: dict):
+        """Called when the plugin is disabled or Dispatcharr is shutting down.
+
+        After a ``force_reload`` the module-level ``get_current_server()``
+        reference points to ``None`` because the module was re-imported.
+        The old server daemon thread is still alive but unreachable by
+        direct reference.  We fall back to Redis signaling so the old
+        server's monitor loop detects the stop flag and exits.
+        """
+        current_server = get_current_server()
+        if current_server and current_server.is_running():
+            logger.info("Plugin stopping, shutting down metrics server")
+            current_server.stop()
+            return
+
+        # Redis fallback: signal orphaned server from a previous module load
+        redis_client = get_redis_client()
+        if redis_client and read_redis_flag(redis_client, REDIS_KEY_RUNNING):
+            logger.info("Plugin stopping, sending Redis stop signal to orphaned metrics server")
+            redis_client.set(REDIS_KEY_STOP, "1")
+
 
 __version__ = PLUGIN_CONFIG["version"]
 __all__ = ["Plugin"]

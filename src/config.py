@@ -57,6 +57,11 @@ ALL_PLUGIN_REDIS_KEYS = CLEANUP_REDIS_KEYS + [REDIS_KEY_LEADER]
 # It only needs to outlast the server startup sequence.
 LEADER_TTL = 60  # seconds
 
+# Heartbeat TTL for "running" Redis keys.  The server refreshes its keys on
+# every monitoring loop iteration (1s).  If the process dies, the keys expire
+# and autostart can proceed on the next startup.
+HEARTBEAT_TTL = 30  # seconds
+
 # ── Plugin field definitions ─────────────────────────────────────────────────
 # Shared between the Plugin class (used by Dispatcharr UI) and the collector
 # (used to build the dispatcharr_exporter_settings_info metric).
