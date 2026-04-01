@@ -1289,7 +1289,9 @@ class PrometheusMetricsCollector:
         # Count active streams per user_id from Redis
         active_streams_by_user = {}
         try:
-            redis = RedisClient.get_client()
+            redis = self.redis_client
+            if not redis:
+                raise RuntimeError("Redis client not available")
             # Live client keys
             for key in redis.scan_iter(match="ts_proxy:channel:*:clients:*", count=1000):
                 parts = key.split(':')
