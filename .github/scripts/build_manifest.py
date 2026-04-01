@@ -209,6 +209,7 @@ def main():
                             "url": dev_url,
                             "checksum_sha256": dev_sha256,
                             "build_timestamp": dev_rel["published_at"],
+                            "prerelease": True,
                         }
                         if dev_commit_sha:
                             dev_entry["commit_sha"] = dev_commit_sha
