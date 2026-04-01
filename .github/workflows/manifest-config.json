@@ -1,5 +1,6 @@
 {
   "slug": "dispatcharr_exporter",
+  "registry_name": "Dispatcharr Exporter Dev",
   "plugin_json": "src/plugin.json",
   "logo": "src/logo.png"
 }

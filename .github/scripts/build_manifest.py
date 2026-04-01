@@ -89,6 +89,7 @@ def main():
     SLUG = config["slug"]
     plugin_json_path = config.get("plugin_json", "src/plugin.json")
     logo_path = config.get("logo", "src/logo.png")
+    registry_name_override = config.get("registry_name")
 
     set_output("slug", SLUG)
     set_output("logo", logo_path)
@@ -181,7 +182,7 @@ def main():
     plugin_entry = {k: v for k, v in plugin_entry.items() if v is not None}
 
     root_manifest = {
-        "registry_name": meta.get("name", "Dispatcharr Exporter"),
+        "registry_name": registry_name_override or meta.get("name", SLUG),
         "registry_url": registry_url,
         "root_url": root_url,
         "plugins": [plugin_entry],
