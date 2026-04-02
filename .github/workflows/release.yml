@@ -23,10 +23,12 @@ jobs:
       - name: Read plugin config
         id: config
         run: |
-          SLUG=$(python3 -c "import json; print(json.load(open('.github/workflows/manifest-config.json'))['slug'])")
+          SLUG=$(python3 -c "import json; n=json.load(open('src/plugin.json'))['name']; print(n.lower().replace(' ','_'))")
+          AGGREGATOR_REPO=$(python3 -c "import json; print(json.load(open('.github/workflows/manifest-config.json')).get('aggregator_repo',''))")
           BASE_NAME="${SLUG//_/-}"
           echo "slug=$SLUG" >> $GITHUB_OUTPUT
           echo "base_name=$BASE_NAME" >> $GITHUB_OUTPUT
+          echo "aggregator_repo=$AGGREGATOR_REPO" >> $GITHUB_OUTPUT
       
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -117,3 +119,19 @@ jobs:
             echo "Attempting to remove old prerelease asset: ${BASE_NAME}-${PRE_VERSION}.zip"
             gh release delete-asset "$TAG" "${BASE_NAME}-${PRE_VERSION}.zip" 2>/dev/null || echo "Could not remove prerelease asset (may not exist or releases may be immutable)"
           fi
+
+      - name: Notify aggregator
+        if: steps.version.outputs.IS_RELEASE == 'true'
+        env:
+          PAT: ${{ secrets.PLUGINS_DISPATCH_PAT }}
+          AGGREGATOR_REPO: ${{ steps.config.outputs.aggregator_repo }}
+        run: |
+          if [ -z "$PAT" ] || [ -z "$AGGREGATOR_REPO" ]; then
+            echo "No PAT or aggregator_repo configured – skipping dispatch."
+            exit 0
+          fi
+          curl -s --fail -X POST \
+            -H "Authorization: Bearer $PAT" \
+            -H "Accept: application/vnd.github+json" \
+            "https://api.github.com/repos/${AGGREGATOR_REPO}/dispatches" \
+            -d "{\"event_type\":\"plugin-updated\",\"client_payload\":{\"repo\":\"${{ github.repository }}\"}}"

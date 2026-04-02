@@ -1,7 +1,4 @@
 {
-  "slug": "dispatcharr_exporter",
-  "registry_name": "Dispatcharr Exporter Dev",
-  "plugin_json": "src/plugin.json",
-  "logo": "src/logo.png",
-  "dev_tag": "dev-latest"
+  "dev_tag": "dev-latest",
+  "aggregator_repo": "sethwv/sethwv-plugins-dev"
 }
