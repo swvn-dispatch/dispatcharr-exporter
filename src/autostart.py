@@ -52,20 +52,10 @@ def attempt_autostart(collector) -> None:
             return
         _autostart_launched = True
 
-    # Redis-level dedup: survives module reloads (force_reload resets the
-    # module-level flag above).  The key is short-lived so it doesn't
-    # block a genuine cold start after a container restart.
-    try:
-        from .utils import get_redis_client
-        from .config import REDIS_KEY_LEADER
-        _rc = get_redis_client()
-        if _rc:
-            _dedup_key = REDIS_KEY_LEADER + ":autostart_dedup"
-            if not _rc.set(_dedup_key, "1", nx=True, ex=_STARTUP_WAIT + (_RETRY_DELAY * _MAX_ATTEMPTS) + 10):
-                logger.debug("Prometheus exporter: auto-start already in progress (Redis dedup), skipping")
-                return
-    except Exception:
-        pass  # if Redis isn't up yet, proceed normally
+    # Redis-level dedup is handled later inside the background thread
+    # (leader election). We avoid touching Redis here because Plugin.__init__
+    # runs at import time, potentially before Dispatcharr's Redis is ready.
+    # Blocking here would stall the entire uWSGI worker boot.
 
     threading.Thread(
         target=_autostart_worker,
@@ -98,6 +88,27 @@ def _autostart_worker(collector) -> None:
     from .config import REDIS_KEY_LEADER, REDIS_KEY_RUNNING, LEADER_TTL, DEFAULT_PORT, DEFAULT_HOST, AUTO_START_DEFAULT, PLUGIN_DB_KEY
     from .utils import get_redis_client, normalize_host
 
+    # ── Step 0: Redis dedup (prevents redundant threads after force_reload) ──
+    # This runs inside the thread (after the daemon is spawned) so it never
+    # blocks uWSGI worker boot.  The initial sleep gives Redis time to be ready.
+    time.sleep(_STARTUP_WAIT)
+    try:
+        _rc = get_redis_client()
+        if _rc:
+            _dedup_key = REDIS_KEY_LEADER + ":autostart_dedup"
+            if not _rc.set(_dedup_key, "1", nx=True, ex=(_RETRY_DELAY * _MAX_ATTEMPTS) + 30):
+                # Key exists — but if nothing is actually running or leading,
+                # it's stale from a previous lifecycle.  Clear and proceed.
+                if not _rc.get(REDIS_KEY_RUNNING) and not _rc.get(REDIS_KEY_LEADER):
+                    logger.debug("Prometheus exporter: stale autostart_dedup key, clearing")
+                    _rc.delete(_dedup_key)
+                    _rc.set(_dedup_key, "1", nx=True, ex=(_RETRY_DELAY * _MAX_ATTEMPTS) + 30)
+                else:
+                    logger.debug("Prometheus exporter: auto-start already in progress (Redis dedup), skipping")
+                    return
+    except Exception:
+        pass  # Redis not available yet — proceed, leader election will gate us
+
     # ── Step 1: wait for Django ORM and read plugin config ───────────────────
     # Try both key forms since Dispatcharr derives the DB key from the zip
     # folder name, which may use underscores or hyphens depending on build source.
@@ -107,7 +118,9 @@ def _autostart_worker(collector) -> None:
     auto_start_enabled = False
 
     for attempt in range(_MAX_ATTEMPTS):
-        time.sleep(_STARTUP_WAIT if attempt == 0 else _RETRY_DELAY)
+        # First iteration has no sleep — _STARTUP_WAIT already elapsed above.
+        if attempt > 0:
+            time.sleep(_RETRY_DELAY)
         try:
             from apps.plugins.models import PluginConfig
             config = None
