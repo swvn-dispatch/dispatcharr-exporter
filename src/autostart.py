@@ -158,6 +158,18 @@ def _autostart_worker(collector) -> None:
         logger.debug("Prometheus exporter: auto-start disabled in settings")
         return
 
+    # ── Step 1b: respect manual stop ─────────────────────────────────────────
+    # If the user manually stopped the server during this Dispatcharr runtime,
+    # a Redis flag is set.  It's cleared on fresh boot (CLEANUP_REDIS_KEYS).
+    try:
+        from .config import REDIS_KEY_MANUAL_STOP
+        _rc = get_redis_client()
+        if _rc and _rc.get(REDIS_KEY_MANUAL_STOP):
+            logger.debug("Prometheus exporter: auto-start skipped (server was manually stopped)")
+            return
+    except Exception:
+        pass
+
     # ── Step 2: leader election via Redis SET NX ─────────────────────────────
     redis_client = get_redis_client()
     if redis_client is None:

@@ -188,6 +188,15 @@ class Plugin:
         # ── stop_server ──────────────────────────────────────────────────────
         elif action == "stop_server":
             try:
+                # Flag manual stop so autostart won't re-launch during this runtime.
+                # The flag is cleared on fresh Dispatcharr boot (CLEANUP_REDIS_KEYS).
+                if redis_client:
+                    try:
+                        from .config import REDIS_KEY_MANUAL_STOP
+                        redis_client.set(REDIS_KEY_MANUAL_STOP, "1")
+                    except Exception:
+                        pass
+
                 if current_server and current_server.is_running():
                     if current_server.stop():
                         return {"status": "success", "message": "Metrics server stopped successfully"}

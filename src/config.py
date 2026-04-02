@@ -38,6 +38,7 @@ REDIS_KEY_HOST    = "prometheus_exporter:server_host"
 REDIS_KEY_PORT    = "prometheus_exporter:server_port"
 REDIS_KEY_STOP    = "prometheus_exporter:stop_requested"
 REDIS_KEY_LEADER  = "prometheus_exporter:leader"
+REDIS_KEY_MANUAL_STOP = "prometheus_exporter:manual_stop"
 
 # Keys to wipe on startup (leader key intentionally excluded so the winning
 # worker keeps its claim after cleanup).
@@ -46,6 +47,7 @@ CLEANUP_REDIS_KEYS = [
     REDIS_KEY_HOST,
     REDIS_KEY_PORT,
     REDIS_KEY_STOP,
+    REDIS_KEY_MANUAL_STOP,
     # Historical keys that may exist from older plugin versions
     "prometheus_exporter:autostart_completed",
 ]
