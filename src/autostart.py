@@ -95,7 +95,7 @@ def cleanup_stale_state(redis_client) -> None:
 
 def _autostart_worker(collector) -> None:
     """Background thread body."""
-    from .config import PLUGIN_CONFIG, REDIS_KEY_LEADER, REDIS_KEY_RUNNING, LEADER_TTL, DEFAULT_PORT, DEFAULT_HOST, AUTO_START_DEFAULT, PLUGIN_DB_KEY
+    from .config import REDIS_KEY_LEADER, REDIS_KEY_RUNNING, LEADER_TTL, DEFAULT_PORT, DEFAULT_HOST, AUTO_START_DEFAULT, PLUGIN_DB_KEY
     from .utils import get_redis_client, normalize_host
 
     # ── Step 1: wait for Django ORM and read plugin config ───────────────────

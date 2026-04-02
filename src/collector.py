@@ -10,7 +10,7 @@ import time
 from apps.proxy.ts_proxy.constants import ChannelMetadataField
 
 from .config import PLUGIN_CONFIG, PLUGIN_FIELDS, DEFAULT_PORT
-from .utils import get_dispatcharr_version
+from .utils import escape_label, get_dispatcharr_version
 
 logger = logging.getLogger(__name__)
 
@@ -611,15 +611,10 @@ class PrometheusMetricsCollector:
                                                             f'{prefix}_end_time=""',
                                                         ]
 
-                                                    def escape_label_value(value):
-                                                        if not value:
-                                                            return ""
-                                                        return value.replace('\\', '\\\\').replace('"', '\\"').replace('\n', '\\n')
-
                                                     return [
-                                                        f'{prefix}_title="{escape_label_value(program.title)}"',
-                                                        f'{prefix}_subtitle="{escape_label_value(program.sub_title)}"',
-                                                        f'{prefix}_description="{escape_label_value(program.description)}"',
+                                                        f'{prefix}_title="{escape_label(program.title)}"',
+                                                        f'{prefix}_subtitle="{escape_label(program.sub_title)}"',
+                                                        f'{prefix}_description="{escape_label(program.description)}"',
                                                         f'{prefix}_start_time="{program.start_time.isoformat()}"',
                                                         f'{prefix}_end_time="{program.end_time.isoformat()}"',
                                                     ]
@@ -886,14 +881,9 @@ class PrometheusMetricsCollector:
 
                                     logger.debug(f"Entering programming metric generation for {session_id}")
 
-                                    def escape_label_value(value):
-                                        if not value:
-                                            return ""
-                                        return value.replace('\\', '\\\\').replace('"', '\\"').replace('\n', '\\n')
-
-                                    prog_title_safe = escape_label_value(prog_title)
-                                    prog_subtitle_safe = escape_label_value(prog_subtitle)
-                                    prog_description_safe = escape_label_value(prog_description)
+                                    prog_title_safe = escape_label(prog_title)
+                                    prog_subtitle_safe = escape_label(prog_subtitle)
+                                    prog_description_safe = escape_label(prog_description)
 
                                     prog_start_time = ""
                                     prog_end_time = ""

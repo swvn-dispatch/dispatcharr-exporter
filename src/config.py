@@ -50,9 +50,6 @@ CLEANUP_REDIS_KEYS = [
     "prometheus_exporter:autostart_completed",
 ]
 
-# Complete set of every key ever written by this plugin
-ALL_PLUGIN_REDIS_KEYS = CLEANUP_REDIS_KEYS + [REDIS_KEY_LEADER]
-
 # Leader election TTL.  The winner holds this key for up to LEADER_TTL seconds.
 # It only needs to outlast the server startup sequence.
 LEADER_TTL = 60  # seconds
