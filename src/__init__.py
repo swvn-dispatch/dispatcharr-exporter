@@ -35,11 +35,11 @@ class Plugin:
 
     actions = [
         {
-            "id": "start_server",
-            "label": "Start Metrics Server",
-            "description": "Start the HTTP metrics server",
-            "button_label": "Start Server",
-            "button_variant": "primary",
+            "id": "restart_server",
+            "label": "Start / Restart Metrics Server",
+            "description": "Start or restart the HTTP metrics server",
+            "button_label": "Start / Restart",
+            "button_variant": "filled",
             "button_color": "green",
         },
         {
@@ -47,23 +47,15 @@ class Plugin:
             "label": "Stop Metrics Server",
             "description": "Stop the HTTP metrics server",
             "button_label": "Stop Server",
-            "button_variant": "danger",
+            "button_variant": "filled",
             "button_color": "red",
-        },
-        {
-            "id": "restart_server",
-            "label": "Restart Metrics Server",
-            "description": "Restart the HTTP metrics server",
-            "button_label": "Restart Server",
-            "button_variant": "primary",
-            "button_color": "orange",
         },
         {
             "id": "server_status",
             "label": "Server Status",
             "description": "Check if the metrics server is running and get endpoint URL",
             "button_label": "Check Status",
-            "button_variant": "secondary",
+            "button_variant": "filled",
             "button_color": "blue",
         },
     ]
@@ -136,100 +128,17 @@ class Plugin:
         redis_client, server_running_redis, server_host, server_port = self._get_redis_server_state()
         current_server = get_current_server()
 
-        # ── start_server ─────────────────────────────────────────────────────
-        if action == "start_server":
+        # ── restart_server (also serves as start) ────────────────────────────
+        if action == "restart_server":
             try:
-                import gevent  # noqa: F401
-                from gevent import pywsgi  # noqa: F401
-            except ImportError:
-                return {
-                    "status": "error",
-                    "message": "gevent is not installed (unexpected - it is a Dispatcharr dependency)",
-                    "instructions": "If running a custom setup, install: pip install gevent",
-                }
-
-            try:
-                port = int(settings.get("port", DEFAULT_PORT))
-                host = normalize_host(
-                    settings.get("host", DEFAULT_HOST),
-                    DEFAULT_HOST,
-                )
-                logger_ctx.info(f"Starting server with host='{host}', port={port}")
-
-                if server_running_redis:
-                    return {
-                        "status": "error",
-                        "message": f"Metrics server is already running on http://{server_host}:{server_port}/metrics",
-                    }
-                if current_server and current_server.is_running():
-                    return {
-                        "status": "error",
-                        "message": f"Metrics server is already running on http://{current_server.host}:{current_server.port}/metrics",
-                    }
-
-                server = MetricsServer(self.collector, port=port, host=host)
-                if server.start(settings=settings):
-                    return {
-                        "status": "success",
-                        "message": "Metrics server started successfully",
-                        "endpoint": f"http://{host}:{port}/metrics",
-                        "health_check": f"http://{host}:{port}/health",
-                        "note": "Metrics are generated fresh on each Prometheus scrape request",
-                    }
-                return {
-                    "status": "error",
-                    "message": "Failed to start metrics server. Port may already be in use.",
-                }
-
-            except Exception as e:
-                logger_ctx.error(f"Error starting metrics server: {e}", exc_info=True)
-                return {"status": "error", "message": f"Failed to start server: {str(e)}"}
-
-        # ── stop_server ──────────────────────────────────────────────────────
-        elif action == "stop_server":
-            try:
-                # Flag manual stop so autostart won't re-launch during this runtime.
-                # The flag is cleared on fresh Dispatcharr boot (CLEANUP_REDIS_KEYS).
+                # Clear manual-stop flag so this explicit start is honored
                 if redis_client:
                     try:
                         from .config import REDIS_KEY_MANUAL_STOP
-                        redis_client.set(REDIS_KEY_MANUAL_STOP, "1")
+                        redis_client.delete(REDIS_KEY_MANUAL_STOP)
                     except Exception:
                         pass
 
-                if current_server and current_server.is_running():
-                    if current_server.stop():
-                        return {"status": "success", "message": "Metrics server stopped successfully"}
-
-                if redis_client:
-                    try:
-                        logger_ctx.info("Sending stop signal via Redis")
-                        redis_client.set(REDIS_KEY_STOP, "1")
-
-                        for _ in range(50):  # wait up to 5 s
-                            if not read_redis_flag(redis_client, REDIS_KEY_RUNNING):
-                                logger_ctx.info("Server confirmed shutdown via Redis")
-                                return {"status": "success", "message": "Metrics server stopped successfully"}
-                            time.sleep(0.1)
-
-                        logger_ctx.warning("Server did not confirm shutdown within 5s, force-cleaning Redis keys")
-                        redis_client.delete(REDIS_KEY_RUNNING, REDIS_KEY_HOST, REDIS_KEY_PORT, REDIS_KEY_STOP)
-                        return {
-                            "status": "warning",
-                            "message": "Stop signal sent but server did not confirm. Redis keys cleared - you can now restart.",
-                        }
-                    except Exception as e:
-                        return {"status": "error", "message": f"Failed to signal stop: {str(e)}"}
-
-                return {"status": "error", "message": "No running server found"}
-
-            except Exception as e:
-                logger_ctx.error(f"Error stopping metrics server: {e}", exc_info=True)
-                return {"status": "error", "message": f"Failed to stop server: {str(e)}"}
-
-        # ── restart_server ───────────────────────────────────────────────────
-        elif action == "restart_server":
-            try:
                 if current_server and current_server.is_running():
                     current_server.stop()
 
@@ -271,18 +180,60 @@ class Plugin:
                 if server.start(settings=settings):
                     return {
                         "status": "success",
-                        "message": "Metrics server restarted successfully",
+                        "message": "Metrics server started successfully",
                         "endpoint": f"http://{host}:{port}/metrics",
                         "health_check": f"http://{host}:{port}/health",
                     }
                 return {
                     "status": "error",
-                    "message": "Server stopped but failed to restart. Port may be in use.",
+                    "message": "Failed to start metrics server. Port may be in use.",
                 }
 
             except Exception as e:
-                logger_ctx.error(f"Error restarting metrics server: {e}", exc_info=True)
-                return {"status": "error", "message": f"Failed to restart server: {str(e)}"}
+                logger_ctx.error(f"Error starting metrics server: {e}", exc_info=True)
+                return {"status": "error", "message": f"Failed to start server: {str(e)}"}
+
+        # ── stop_server ──────────────────────────────────────────────────────
+        elif action == "stop_server":
+            try:
+                # Flag manual stop so autostart won't re-launch during this runtime.
+                # The flag is cleared on fresh Dispatcharr boot (CLEANUP_REDIS_KEYS).
+                if redis_client:
+                    try:
+                        from .config import REDIS_KEY_MANUAL_STOP
+                        redis_client.set(REDIS_KEY_MANUAL_STOP, "1")
+                    except Exception:
+                        pass
+
+                if current_server and current_server.is_running():
+                    if current_server.stop():
+                        return {"status": "success", "message": "Metrics server stopped successfully"}
+
+                if redis_client:
+                    try:
+                        logger_ctx.info("Sending stop signal via Redis")
+                        redis_client.set(REDIS_KEY_STOP, "1")
+
+                        for _ in range(50):  # wait up to 5 s
+                            if not read_redis_flag(redis_client, REDIS_KEY_RUNNING):
+                                logger_ctx.info("Server confirmed shutdown via Redis")
+                                return {"status": "success", "message": "Metrics server stopped successfully"}
+                            time.sleep(0.1)
+
+                        logger_ctx.warning("Server did not confirm shutdown within 5s, force-cleaning Redis keys")
+                        redis_client.delete(REDIS_KEY_RUNNING, REDIS_KEY_HOST, REDIS_KEY_PORT, REDIS_KEY_STOP)
+                        return {
+                            "status": "warning",
+                            "message": "Stop signal sent but server did not confirm. Redis keys cleared.",
+                        }
+                    except Exception as e:
+                        return {"status": "error", "message": f"Failed to signal stop: {str(e)}"}
+
+                return {"status": "error", "message": "No running server found"}
+
+            except Exception as e:
+                logger_ctx.error(f"Error stopping metrics server: {e}", exc_info=True)
+                return {"status": "error", "message": f"Failed to stop server: {str(e)}"}
 
         # ── server_status ────────────────────────────────────────────────────
         elif action == "server_status":
