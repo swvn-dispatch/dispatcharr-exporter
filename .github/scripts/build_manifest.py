@@ -266,8 +266,10 @@ def main():
         "license": meta.get("license", "MIT"),
         "latest_version": latest_ver,
         "versions": versions + ([dev_entry] if dev_entry else []),
-        "latest": {**latest},
+        "latest": {**latest} if latest else None,
     }
+    # Drop top-level keys with no value
+    per_plugin_manifest = {k: v for k, v in per_plugin_manifest.items() if v is not None}
 
     # Write output files
     plugin_out = os.path.join(OUT_DIR, "plugins", SLUG)
