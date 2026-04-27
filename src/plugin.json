@@ -5,7 +5,7 @@
   "license": "MIT",
   "discord_thread": "https://discord.com/channels/1340492560220684331/1451260201775923421",
   "author": "sethwv",
-  "help_url": "https://github.com/sethwv/dispatcharr-exporter",
+  "help_url": "https://github.com/swvn-dispatch/dispatcharr-exporter",
   "min_dispatcharr_version": "v0.22.0",
-  "repo_url": "https://github.com/sethwv/dispatcharr-exporter"
+  "repo_url": "https://github.com/swvn-dispatch/dispatcharr-exporter"
 }

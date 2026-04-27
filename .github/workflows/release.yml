@@ -123,7 +123,7 @@ jobs:
       - name: Notify aggregator
         if: steps.version.outputs.IS_RELEASE == 'true'
         env:
-          PAT: ${{ secrets.PLUGINS_DISPATCH_PAT }}
+          PAT: ${{ secrets.SETH_PAT }}
           AGGREGATOR_REPO: ${{ steps.config.outputs.aggregator_repo }}
         run: |
           if [ -z "$PAT" ] || [ -z "$AGGREGATOR_REPO" ]; then
