@@ -138,4 +138,4 @@ jobs:
             -H "Authorization: Bearer $PAT" \
             -H "Accept: application/vnd.github+json" \
             "https://api.github.com/repos/${AGGREGATOR_REPO}/dispatches" \
-            -d "{\"event_type\":\"plugin-updated\",\"client_payload\":{\"repo\":\"${{ github.repository }}\"}}"
+            -d "{\"event_type\":\"plugin-dev-updated\",\"client_payload\":{\"repo\":\"${{ github.repository }}\"}}"
