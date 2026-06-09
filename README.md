@@ -2,6 +2,12 @@
 
 A [Dispatcharr](https://github.com/Dispatcharr/Dispatcharr) plugin that exposes metrics in Prometheus format for monitoring and alerting.
 
+## Support
+
+This project is maintained in my spare time. If it's saved you some headaches, a tip is always appreciated.
+
+[![ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/sethwv)
+
 ## Installation
 
 1. Download the latest release zip from the [releases page](https://github.com/sethwv/dispatcharr-exporter/releases).
