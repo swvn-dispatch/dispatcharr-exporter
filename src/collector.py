@@ -88,7 +88,7 @@ class PrometheusMetricsCollector:
             metrics.extend(self._collect_epg_metrics(settings))
 
         # Channel metrics
-        metrics.extend(self._collect_channel_metrics())
+        metrics.extend(self._collect_channel_metrics(settings))
 
         # Profile connection metrics
         if not settings or settings.get('include_m3u_stats', True):
@@ -100,6 +100,11 @@ class PrometheusMetricsCollector:
         # Client connection metrics
         if settings and settings.get('include_client_stats', False):
             metrics.extend(self._collect_client_metrics())
+            metrics.extend(self._collect_timeshift_metrics())
+
+        # Plugin metrics
+        if settings and settings.get('include_plugin_stats', False):
+            metrics.extend(self._collect_plugin_metrics(settings))
 
         # User metrics
         if settings and settings.get('include_user_stats', False):
@@ -172,7 +177,7 @@ class PrometheusMetricsCollector:
 
     # ── Channel metrics ──────────────────────────────────────────────────────
 
-    def _collect_channel_metrics(self) -> list:
+    def _collect_channel_metrics(self, settings: dict = None) -> list:
         """Collect channel statistics."""
         from apps.channels.models import Channel, ChannelGroup
 
@@ -192,7 +197,43 @@ class PrometheusMetricsCollector:
         except Exception as e:
             logger.error(f"Error collecting channel metrics: {e}")
 
+        if settings and settings.get('include_catchup_stats', False):
+            metrics.extend(self._collect_channel_catchup_metrics(Channel))
+
         metrics.append("")
+        return metrics
+
+    def _collect_channel_catchup_metrics(self, Channel) -> list:
+        """Collect per-channel catch-up (timeshift) configuration.
+
+        ``Channel.is_catchup``/``catchup_days`` only exist on Dispatcharr
+        builds that include the timeshift app, so this degrades to an empty
+        list on older instances.
+        """
+        metrics = []
+        try:
+            catchup_channels = Channel.objects.filter(is_catchup=True)
+            if not catchup_channels.exists():
+                return metrics
+
+            metrics.append("# HELP dispatcharr_channel_catchup_enabled Whether catch-up (timeshift) is enabled for this channel")
+            metrics.append("# TYPE dispatcharr_channel_catchup_enabled gauge")
+            metrics.append("# HELP dispatcharr_channel_catchup_days Number of days of catch-up buffer configured for this channel")
+            metrics.append("# TYPE dispatcharr_channel_catchup_days gauge")
+
+            for channel in catchup_channels:
+                labels = (
+                    f'channel_id="{channel.id}",'
+                    f'channel_number="{channel.channel_number}",'
+                    f'channel_name="{escape_label(channel.name)}"'
+                )
+                metrics.append(f'dispatcharr_channel_catchup_enabled{{{labels}}} 1')
+                metrics.append(f'dispatcharr_channel_catchup_days{{{labels}}} {channel.catchup_days or 0}')
+        except Exception as e:
+            # AttributeError/FieldError on older Dispatcharr builds without
+            # the timeshift fields; log at debug so it doesn't spam.
+            logger.debug(f"Skipping channel catch-up metrics (unsupported Dispatcharr version?): {e}")
+
         return metrics
 
     # ── Profile metrics ──────────────────────────────────────────────────────
@@ -1265,6 +1306,183 @@ class PrometheusMetricsCollector:
 
         except Exception as e:
             logger.error(f"Error collecting client metrics: {e}")
+
+        metrics.append("")
+        return metrics
+
+    def _collect_timeshift_metrics(self) -> list:
+        """Collect catch-up (timeshift) session and per-client metrics.
+
+        Reuses Dispatcharr's own ``build_timeshift_stats_data`` aggregator
+        (same one that powers the admin catch-up stats UI) instead of
+        reimplementing the Redis scan. Older Dispatcharr builds without the
+        timeshift app degrade to an empty metric list.
+        """
+        try:
+            from apps.timeshift.stats import build_timeshift_stats_data
+        except ImportError:
+            return []
+
+        metrics = []
+        try:
+            data = build_timeshift_stats_data(self.redis_client)
+            sessions = data.get('timeshift_sessions', [])
+
+            metrics.append("# HELP dispatcharr_timeshift_sessions Total number of active catch-up (timeshift) sessions")
+            metrics.append("# TYPE dispatcharr_timeshift_sessions gauge")
+            metrics.append(f"dispatcharr_timeshift_sessions {len(sessions)}")
+
+            metrics.append("# HELP dispatcharr_timeshift_connections Total number of active catch-up connections across all sessions")
+            metrics.append("# TYPE dispatcharr_timeshift_connections gauge")
+            metrics.append(f"dispatcharr_timeshift_connections {data.get('total_connections', 0)}")
+
+            metrics.append("# HELP dispatcharr_timeshift_session_info Catch-up session metadata")
+            metrics.append("# TYPE dispatcharr_timeshift_session_info gauge")
+            metrics.append("# HELP dispatcharr_timeshift_session_connection_count Number of client connections attached to this catch-up session")
+            metrics.append("# TYPE dispatcharr_timeshift_session_connection_count gauge")
+            metrics.append("# HELP dispatcharr_timeshift_client_info Catch-up client connection metadata")
+            metrics.append("# TYPE dispatcharr_timeshift_client_info gauge")
+            metrics.append("# HELP dispatcharr_timeshift_client_duration_seconds Duration of the catch-up client connection in seconds")
+            metrics.append("# TYPE dispatcharr_timeshift_client_duration_seconds gauge")
+            metrics.append("# HELP dispatcharr_timeshift_client_bytes_streamed Total bytes streamed to this catch-up client")
+            metrics.append("# TYPE dispatcharr_timeshift_client_bytes_streamed counter")
+            metrics.append("# HELP dispatcharr_timeshift_client_avg_bitrate_bps Average bitrate streamed to this catch-up client in bits per second")
+            metrics.append("# TYPE dispatcharr_timeshift_client_avg_bitrate_bps gauge")
+
+            for session in sessions:
+                session_id = escape_label(session.get('session_id', ''))
+                channel_id = session.get('channel_id', '')
+                channel_uuid = escape_label(session.get('channel_uuid', ''))
+                channel_name = escape_label(session.get('channel_name', ''))
+
+                session_labels = (
+                    f'session_id="{session_id}",'
+                    f'channel_id="{channel_id}",'
+                    f'channel_uuid="{channel_uuid}",'
+                    f'channel_name="{channel_name}",'
+                    f'paused="{str(bool(session.get("paused"))).lower()}",'
+                    f'resolution="{escape_label(session.get("resolution", ""))}",'
+                    f'video_codec="{escape_label(session.get("video_codec", ""))}",'
+                    f'audio_codec="{escape_label(session.get("audio_codec", ""))}",'
+                    f'stream_type="{escape_label(session.get("stream_type", ""))}"'
+                )
+                metrics.append(f'dispatcharr_timeshift_session_info{{{session_labels}}} 1')
+
+                count_labels = (
+                    f'session_id="{session_id}",'
+                    f'channel_id="{channel_id}",'
+                    f'channel_name="{channel_name}"'
+                )
+                metrics.append(f'dispatcharr_timeshift_session_connection_count{{{count_labels}}} {session.get("connection_count", 0)}')
+
+                for conn in session.get('connections', []):
+                    client_labels = (
+                        f'client_id="{escape_label(conn.get("client_id", ""))}",'
+                        f'session_id="{session_id}",'
+                        f'channel_id="{channel_id}",'
+                        f'ip_address="{escape_label(conn.get("ip_address", "unknown"))}",'
+                        f'user_agent="{escape_label(conn.get("user_agent", "unknown"))}",'
+                        f'user_id="{escape_label(conn.get("user_id", "0"))}",'
+                        f'username="{escape_label(conn.get("username", "unknown"))}",'
+                        f'm3u_profile_id="{conn.get("m3u_profile_id") or ""}"'
+                    )
+                    metrics.append(f'dispatcharr_timeshift_client_info{{{client_labels}}} 1')
+
+                    base_labels = (
+                        f'client_id="{escape_label(conn.get("client_id", ""))}",'
+                        f'session_id="{session_id}",'
+                        f'channel_id="{channel_id}"'
+                    )
+                    duration = conn.get('duration', 0)
+                    if duration:
+                        metrics.append(f'dispatcharr_timeshift_client_duration_seconds{{{base_labels}}} {duration}')
+                    bytes_streamed = conn.get('bytes_streamed', 0)
+                    if bytes_streamed:
+                        metrics.append(f'dispatcharr_timeshift_client_bytes_streamed{{{base_labels}}} {bytes_streamed}')
+                    avg_bitrate_bps = (conn.get('avg_bitrate_kbps') or 0) * 1000
+                    if avg_bitrate_bps:
+                        metrics.append(f'dispatcharr_timeshift_client_avg_bitrate_bps{{{base_labels}}} {avg_bitrate_bps}')
+
+        except Exception as e:
+            logger.error(f"Error collecting timeshift metrics: {e}")
+
+        metrics.append("")
+        return metrics
+
+    def _collect_plugin_metrics(self, settings: dict = None) -> list:
+        """Collect installed plugin and plugin-repository health metrics.
+
+        Older Dispatcharr builds without the plugin-management app (apps.plugins)
+        degrade to an empty metric list.
+        """
+        try:
+            from apps.plugins.models import PluginConfig, PluginRepo
+        except ImportError:
+            return []
+
+        metrics = []
+        include_urls = settings and settings.get('include_source_urls', False)
+
+        try:
+            all_plugins = PluginConfig.objects.all()
+            total_plugins = all_plugins.count()
+            enabled_plugins = all_plugins.filter(enabled=True).count()
+            deprecated_plugins = all_plugins.filter(deprecated=True).count()
+            managed_plugins = all_plugins.filter(source_repo__isnull=False).count()
+
+            metrics.append("# HELP dispatcharr_plugins Total number of installed plugins")
+            metrics.append("# TYPE dispatcharr_plugins gauge")
+            metrics.append(f'dispatcharr_plugins{{status="total"}} {total_plugins}')
+            metrics.append(f'dispatcharr_plugins{{status="enabled"}} {enabled_plugins}')
+            metrics.append(f'dispatcharr_plugins{{status="deprecated"}} {deprecated_plugins}')
+            metrics.append(f'dispatcharr_plugins{{status="managed"}} {managed_plugins}')
+
+            metrics.append("# HELP dispatcharr_plugin_info Installed plugin metadata")
+            metrics.append("# TYPE dispatcharr_plugin_info gauge")
+            for plugin in all_plugins:
+                labels = (
+                    f'key="{escape_label(plugin.key)}",'
+                    f'name="{escape_label(plugin.name)}",'
+                    f'version="{escape_label(plugin.version)}",'
+                    f'enabled="{str(plugin.enabled).lower()}",'
+                    f'deprecated="{str(plugin.deprecated).lower()}",'
+                    f'is_managed="{str(plugin.is_managed).lower()}"'
+                )
+                metrics.append(f'dispatcharr_plugin_info{{{labels}}} 1')
+
+            all_repos = PluginRepo.objects.all()
+            total_repos = all_repos.count()
+            enabled_repos = all_repos.filter(enabled=True).count()
+            official_repos = all_repos.filter(is_official=True).count()
+
+            metrics.append("# HELP dispatcharr_plugin_repos Total number of configured plugin repositories")
+            metrics.append("# TYPE dispatcharr_plugin_repos gauge")
+            metrics.append(f'dispatcharr_plugin_repos{{status="total"}} {total_repos}')
+            metrics.append(f'dispatcharr_plugin_repos{{status="enabled"}} {enabled_repos}')
+            metrics.append(f'dispatcharr_plugin_repos{{status="official"}} {official_repos}')
+
+            metrics.append("# HELP dispatcharr_plugin_repo_info Plugin repository metadata")
+            metrics.append("# TYPE dispatcharr_plugin_repo_info gauge")
+            metrics.append("# HELP dispatcharr_plugin_repo_last_fetch_timestamp Unix timestamp of the last manifest fetch for this plugin repository")
+            metrics.append("# TYPE dispatcharr_plugin_repo_last_fetch_timestamp gauge")
+            for repo in all_repos:
+                labels = (
+                    f'name="{escape_label(repo.name)}",'
+                    f'is_official="{str(repo.is_official).lower()}",'
+                    f'enabled="{str(repo.enabled).lower()}",'
+                    f'signature_verified="{str(repo.signature_verified).lower()}",'
+                    f'last_fetch_status="{escape_label(repo.last_fetch_status)}"'
+                )
+                if include_urls:
+                    labels += f',url="{escape_label(repo.url)}"'
+                metrics.append(f'dispatcharr_plugin_repo_info{{{labels}}} 1')
+
+                if repo.last_fetched:
+                    repo_labels = f'name="{escape_label(repo.name)}",is_official="{str(repo.is_official).lower()}"'
+                    metrics.append(f'dispatcharr_plugin_repo_last_fetch_timestamp{{{repo_labels}}} {repo.last_fetched.timestamp()}')
+
+        except Exception as e:
+            logger.error(f"Error collecting plugin metrics: {e}")
 
         metrics.append("")
         return metrics

@@ -13,6 +13,8 @@ Complete reference for all metrics exposed by the Dispatcharr Prometheus Exporte
 - [Profile Metrics](#profile-metrics)
 - [Client Connection Metrics](#client-connection-metrics)
 - [User Metrics](#user-metrics)
+- [Timeshift Metrics](#timeshift-metrics)
+- [Plugin Metrics](#plugin-metrics)
 
 ---
 
@@ -62,12 +64,14 @@ dispatcharr_exporter_info{version="1.2.0"} 1
 - `include_client_stats` - Client stats included (true/false)
 - `include_source_urls` - Source URLs included (true/false)
 - `include_user_stats` - User stats included (true/false)
+- `include_plugin_stats` - Plugin stats included (true/false)
+- `include_catchup_stats` - Channel catch-up (timeshift) config stats included (true/false)
 
 **Description:** Info metric showing all exporter configuration settings.
 
 **Example:**
 ```
-dispatcharr_exporter_settings_info{auto_start="true",suppress_access_logs="true",port="9192",host="0.0.0.0",base_url="",include_m3u_stats="true",include_epg_stats="false",include_client_stats="false",include_source_urls="false",include_user_stats="false"} 1
+dispatcharr_exporter_settings_info{auto_start="true",suppress_access_logs="true",port="9192",host="0.0.0.0",base_url="",include_m3u_stats="true",include_epg_stats="false",include_client_stats="false",include_source_urls="false",include_user_stats="false",include_plugin_stats="false",include_catchup_stats="false"} 1
 ```
 
 ### `dispatcharr_exporter_port`
@@ -227,6 +231,39 @@ dispatcharr_channels{status="total"} 250
 **Example:**
 ```
 dispatcharr_channel_groups 15
+```
+
+### `dispatcharr_channel_catchup_enabled`
+
+*Optional metric - disabled by default via `include_catchup_stats` setting*
+
+**Type:** gauge  
+**Value:** 1 (only emitted for channels with catch-up enabled)  
+**Labels:**
+- `channel_id` - Channel ID
+- `channel_number` - Channel number
+- `channel_name` - Channel name
+
+**Description:** Indicates catch-up (timeshift) is enabled for this channel. Only present on Dispatcharr builds that include the timeshift app.
+
+**Example:**
+```
+dispatcharr_channel_catchup_enabled{channel_id="12",channel_number="101",channel_name="ESPN"} 1
+```
+
+### `dispatcharr_channel_catchup_days`
+
+*Optional metric - disabled by default via `include_catchup_stats` setting*
+
+**Type:** gauge  
+**Value:** Number of days of catch-up buffer  
+**Labels:** Same as `dispatcharr_channel_catchup_enabled`
+
+**Description:** Configured catch-up buffer length in days for this channel.
+
+**Example:**
+```
+dispatcharr_channel_catchup_days{channel_id="12",channel_number="101",channel_name="ESPN"} 7
 ```
 
 ---
@@ -976,6 +1013,154 @@ dispatcharr_user_active_streams >= dispatcharr_user_stream_limit
 # Account age in days
 (time() - dispatcharr_user_date_joined_timestamp) / 86400
 ```
+
+---
+
+## Timeshift Metrics
+
+*Optional metrics - disabled by default via `include_client_stats` setting*
+
+These metrics expose catch-up (timeshift) session and per-client information, reusing the same admin catch-up stats aggregator Dispatcharr itself uses. Only present on Dispatcharr builds that include the timeshift app. Client-level metrics carry IP address/user-agent/username, so treat with the same sensitivity as [Client Connection Metrics](#client-connection-metrics).
+
+### `dispatcharr_timeshift_sessions`
+**Type:** gauge  
+**Value:** Count of active catch-up sessions  
+**Labels:** None
+
+**Example:**
+```
+dispatcharr_timeshift_sessions 3
+```
+
+### `dispatcharr_timeshift_connections`
+**Type:** gauge  
+**Value:** Count of active catch-up client connections across all sessions  
+**Labels:** None
+
+**Example:**
+```
+dispatcharr_timeshift_connections 4
+```
+
+### `dispatcharr_timeshift_session_info`
+**Type:** gauge  
+**Value:** Always 1  
+**Labels:**
+- `session_id` - Catch-up session ID
+- `channel_id` - Channel ID
+- `channel_uuid` - Channel UUID
+- `channel_name` - Channel name
+- `paused` - Whether playback is paused (`"true"` / `"false"`)
+- `resolution`, `video_codec`, `audio_codec`, `stream_type` - Stream metadata
+
+**Example:**
+```
+dispatcharr_timeshift_session_info{session_id="ab12",channel_id="12",channel_uuid="...",channel_name="ESPN",paused="false",resolution="1920x1080",video_codec="h264",audio_codec="aac",stream_type="hls"} 1
+```
+
+### `dispatcharr_timeshift_session_connection_count`
+**Type:** gauge  
+**Value:** Number of client connections attached to this session  
+**Labels:**
+- `session_id` - Catch-up session ID
+- `channel_id` - Channel ID
+- `channel_name` - Channel name
+
+**Example:**
+```
+dispatcharr_timeshift_session_connection_count{session_id="ab12",channel_id="12",channel_name="ESPN"} 1
+```
+
+### `dispatcharr_timeshift_client_info`
+**Type:** gauge  
+**Value:** Always 1  
+**Labels:**
+- `client_id` - Client connection ID
+- `session_id` - Catch-up session ID
+- `channel_id` - Channel ID
+- `ip_address` - Client IP address
+- `user_agent` - Client user agent
+- `user_id` - Dispatcharr user ID
+- `username` - Username
+- `m3u_profile_id` - M3U profile ID used for the upstream connection
+
+**Example:**
+```
+dispatcharr_timeshift_client_info{client_id="xyz",session_id="ab12",channel_id="12",ip_address="10.0.0.5",user_agent="VLC/3.0",user_id="1",username="alice",m3u_profile_id="2"} 1
+```
+
+### `dispatcharr_timeshift_client_duration_seconds`
+**Type:** gauge  
+**Value:** Duration of the catch-up client connection in seconds  
+**Labels:** `client_id`, `session_id`, `channel_id`
+
+### `dispatcharr_timeshift_client_bytes_streamed`
+**Type:** counter  
+**Value:** Total bytes streamed to this catch-up client  
+**Labels:** `client_id`, `session_id`, `channel_id`
+
+### `dispatcharr_timeshift_client_avg_bitrate_bps`
+**Type:** gauge  
+**Value:** Average bitrate streamed to this catch-up client in bits per second  
+**Labels:** `client_id`, `session_id`, `channel_id`
+
+---
+
+## Plugin Metrics
+
+*Optional metrics - disabled by default via `include_plugin_stats` setting*
+
+### `dispatcharr_plugins`
+**Type:** gauge  
+**Value:** Plugin count  
+**Labels:**
+- `status` - "total", "enabled", "deprecated", or "managed"
+
+**Example:**
+```
+dispatcharr_plugins{status="total"} 5
+dispatcharr_plugins{status="enabled"} 3
+dispatcharr_plugins{status="deprecated"} 0
+dispatcharr_plugins{status="managed"} 2
+```
+
+### `dispatcharr_plugin_info`
+**Type:** gauge  
+**Value:** Always 1  
+**Labels:**
+- `key` - Plugin key
+- `name` - Plugin name
+- `version` - Installed plugin version
+- `enabled` - Whether the plugin is enabled (`"true"` / `"false"`)
+- `deprecated` - Whether the plugin is marked deprecated (`"true"` / `"false"`)
+- `is_managed` - Whether the plugin was installed from a repo (`"true"` / `"false"`)
+
+**Example:**
+```
+dispatcharr_plugin_info{key="dispatcharr_exporter",name="Dispatcharr Exporter",version="3.1.0",enabled="true",deprecated="false",is_managed="true"} 1
+```
+
+### `dispatcharr_plugin_repos`
+**Type:** gauge  
+**Value:** Plugin repository count  
+**Labels:**
+- `status` - "total", "enabled", or "official"
+
+### `dispatcharr_plugin_repo_info`
+**Type:** gauge  
+**Value:** Always 1  
+**Labels:**
+- `name` - Repository name
+- `is_official` - Whether this is the official Dispatcharr plugin repo (`"true"` / `"false"`)
+- `enabled` - Whether the repo is enabled (`"true"` / `"false"`)
+- `signature_verified` - Manifest signature verification status (`"true"` / `"false"` / `"none"`)
+- `last_fetch_status` - Result of the last manifest fetch attempt
+- `url` - Repository manifest URL (only included when `include_source_urls` is enabled)
+
+### `dispatcharr_plugin_repo_last_fetch_timestamp`
+**Type:** gauge  
+**Value:** Unix timestamp of the last manifest fetch for this repository  
+**Labels:** `name`, `is_official`
 
 ---
 
