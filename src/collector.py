@@ -38,6 +38,18 @@ class PrometheusMetricsCollector:
         metrics = []
         settings = settings or {}
 
+        # Fetch catch-up (timeshift) session data once per scrape and share it
+        # between _collect_stream_metrics and _collect_client_metrics, rather
+        # than each calling build_timeshift_stats_data() independently.
+        timeshift_data = None
+        try:
+            from apps.timeshift.stats import build_timeshift_stats_data
+            timeshift_data = build_timeshift_stats_data(self.redis_client)
+        except ImportError:
+            pass  # Older Dispatcharr builds without the timeshift app
+        except Exception as e:
+            logger.debug(f"Error building timeshift stats data: {e}")
+
         dispatcharr_version, dispatcharr_timestamp, full_version = get_dispatcharr_version()
 
         # Dispatcharr version info
@@ -95,11 +107,11 @@ class PrometheusMetricsCollector:
             metrics.extend(self._collect_profile_metrics())
 
         # Stream metrics (live + VOD + timeshift)
-        metrics.extend(self._collect_stream_metrics(settings))
+        metrics.extend(self._collect_stream_metrics(settings, timeshift_data))
 
         # Client connection metrics
         if settings and settings.get('include_client_stats', False):
-            metrics.extend(self._collect_client_metrics())
+            metrics.extend(self._collect_client_metrics(timeshift_data))
 
         # Plugin metrics
         if settings and settings.get('include_plugin_stats', False):
@@ -387,7 +399,7 @@ class PrometheusMetricsCollector:
 
     # ── Stream metrics ───────────────────────────────────────────────────────
 
-    def _collect_stream_metrics(self, settings: dict = None) -> list:
+    def _collect_stream_metrics(self, settings: dict = None, timeshift_data: dict = None) -> list:
         """Collect active stream statistics from Redis."""
         from apps.channels.models import Channel, Stream
         from apps.m3u.models import M3UAccount, M3UAccountProfile
@@ -993,20 +1005,17 @@ class PrometheusMetricsCollector:
 
                 # ── Timeshift (catch-up) streams ─────────────────────────────
                 try:
-                    from apps.timeshift.stats import build_timeshift_stats_data
-
-                    timeshift_data = build_timeshift_stats_data(self.redis_client)
                     _ts_channel_cache = {}
 
                     def _resolve_ts_channel(channel_id):
                         if channel_id not in _ts_channel_cache:
                             try:
-                                _ts_channel_cache[channel_id] = Channel.objects.select_related('channel_group').get(id=channel_id)
+                                _ts_channel_cache[channel_id] = Channel.objects.select_related('channel_group', 'logo').get(id=channel_id)
                             except Exception:
                                 _ts_channel_cache[channel_id] = None
                         return _ts_channel_cache[channel_id]
 
-                    for session in timeshift_data.get('timeshift_sessions', []):
+                    for session in (timeshift_data or {}).get('timeshift_sessions', []):
                         try:
                             active_streams += 1
                             active_timeshift_streams += 1
@@ -1015,6 +1024,12 @@ class PrometheusMetricsCollector:
                             channel = _resolve_ts_channel(channel_id)
                             channel_number = getattr(channel, 'channel_number', 'N/A') if channel else 'N/A'
                             channel_group = channel.channel_group.name if channel and channel.channel_group else 'none'
+
+                            logo_url = ""
+                            if channel and getattr(channel, 'logo', None):
+                                logo_path = f"/api/channels/logos/{channel.logo.id}/cache/"
+                                base_url = (settings or {}).get('base_url', '').strip()
+                                logo_url = f"{base_url.rstrip('/')}{logo_path}" if base_url else logo_path
 
                             stats_channel_id = session.get('stats_channel_id', '')
                             real_channel_uuid = session.get('channel_uuid', '')
@@ -1041,6 +1056,7 @@ class PrometheusMetricsCollector:
                                 f'real_channel_uuid="{escape_label(real_channel_uuid)}"',
                                 f'session_id="{escape_label(session_id)}"',
                                 f'state="{state}"',
+                                f'logo_url="{escape_label(logo_url)}"',
                                 f'video_codec="{escape_label(session.get("video_codec", ""))}"',
                                 f'resolution="{escape_label(session.get("resolution", ""))}"',
                                 f'audio_codec="{escape_label(session.get("audio_codec", ""))}"',
@@ -1067,8 +1083,6 @@ class PrometheusMetricsCollector:
                         except Exception as e:
                             logger.debug(f"Error processing timeshift session {session.get('session_id')}: {e}")
 
-                except ImportError:
-                    pass  # Older Dispatcharr builds without the timeshift app
                 except Exception as e:
                     logger.debug(f"Error collecting timeshift stream metrics: {e}")
 
@@ -1142,7 +1156,7 @@ class PrometheusMetricsCollector:
 
     # ── Client metrics ───────────────────────────────────────────────────────
 
-    def _collect_client_metrics(self) -> list:
+    def _collect_client_metrics(self, timeshift_data: dict = None) -> list:
         """Collect individual client connection metrics."""
         metrics = []
 
@@ -1403,9 +1417,6 @@ class PrometheusMetricsCollector:
 
             # Timeshift (catch-up) clients
             try:
-                from apps.timeshift.stats import build_timeshift_stats_data
-
-                timeshift_data = build_timeshift_stats_data(self.redis_client)
                 _channel_number_cache = {}
 
                 def _resolve_channel_number(channel_id):
@@ -1416,13 +1427,20 @@ class PrometheusMetricsCollector:
                             _channel_number_cache[channel_id] = 'N/A'
                     return _channel_number_cache[channel_id]
 
-                for session in timeshift_data.get('timeshift_sessions', []):
+                for session in (timeshift_data or {}).get('timeshift_sessions', []):
                     channel_id = session.get('channel_id')
-                    channel_uuid = session.get('channel_uuid', '')
+                    # Matches the channel_uuid used for this session in
+                    # dispatcharr_stream_metadata{type="timeshift"} (a unique
+                    # per-session stats ID, not the real channel UUID) so the
+                    # two metric families stay joinable, same as VOD already
+                    # keys both families on the shared session_id.
+                    stats_channel_id = session.get('stats_channel_id', '')
+                    real_channel_uuid = session.get('channel_uuid', '')
                     channel_name = session.get('channel_name', 'Catch-up')
                     channel_number = _resolve_channel_number(channel_id)
 
-                    channel_uuid_safe = str(channel_uuid).replace('"', '\\"').replace('\\', '\\\\')
+                    channel_uuid_safe = str(stats_channel_id).replace('"', '\\"').replace('\\', '\\\\')
+                    real_channel_uuid_safe = str(real_channel_uuid).replace('"', '\\"').replace('\\', '\\\\')
                     channel_number_safe = str(channel_number).replace('"', '\\"').replace('\\', '\\\\')
                     channel_name_safe = str(channel_name).replace('"', '\\"').replace('\\', '\\\\')
 
@@ -1446,9 +1464,11 @@ class PrometheusMetricsCollector:
 
                         info_labels = base_labels + [
                             f'channel_name="{channel_name_safe}"',
+                            f'real_channel_uuid="{real_channel_uuid_safe}"',
                             f'session_id="{session_id_safe}"',
                             f'ip_address="{ip_address_safe}"',
                             f'user_agent="{user_agent_safe}"',
+                            f'worker_id="unknown"',
                             f'user_id="{user_id_str}"',
                             f'username="{username_safe}"',
                         ]
@@ -1467,8 +1487,6 @@ class PrometheusMetricsCollector:
                             client_metrics.append(f'dispatcharr_client_avg_transfer_rate_bps{{{base_labels_str}}} {avg_rate_bps:.2f}')
                             client_metrics.append(f'dispatcharr_client_current_transfer_rate_bps{{{base_labels_str}}} {avg_rate_bps:.2f}')
 
-            except ImportError:
-                pass  # Older Dispatcharr builds without the timeshift app
             except Exception as e:
                 logger.debug(f"Error collecting timeshift clients: {e}")
 
