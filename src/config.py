@@ -153,10 +153,10 @@ PLUGIN_FIELDS = [
         "description": "Include installed plugin and plugin-repo health metrics",
     },
     {
-        "id": "include_catchup_stats",
-        "label": "Include Catch-up (Timeshift) Channel Statistics",
+        "id": "include_channel_info",
+        "label": "Include Channel Info Statistics",
         "type": "boolean",
         "default": False,
-        "description": "Include per-channel catch-up/timeshift configuration metrics (enabled flag, buffer days)",
+        "description": "Include per-channel info (catch-up status, source/stream count, group) metrics",
     },
 ]

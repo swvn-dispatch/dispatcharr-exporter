@@ -197,42 +197,60 @@ class PrometheusMetricsCollector:
         except Exception as e:
             logger.error(f"Error collecting channel metrics: {e}")
 
-        if settings and settings.get('include_catchup_stats', False):
-            metrics.extend(self._collect_channel_catchup_metrics(Channel))
+        if settings and settings.get('include_channel_info', False):
+            metrics.extend(self._collect_channel_info_metrics(Channel))
 
         metrics.append("")
         return metrics
 
-    def _collect_channel_catchup_metrics(self, Channel) -> list:
-        """Collect per-channel catch-up (timeshift) configuration.
+    def _collect_channel_info_metrics(self, Channel) -> list:
+        """Collect general per-channel info: group, catch-up config, source count.
 
         ``Channel.is_catchup``/``catchup_days`` only exist on Dispatcharr
-        builds that include the timeshift app, so this degrades to an empty
-        list on older instances.
+        builds that include the timeshift app; those fall back to
+        false/0 on older instances rather than dropping the whole channel,
+        since group/source-count data is still valid there.
         """
+        from django.db.models import Count
+
         metrics = []
         try:
-            catchup_channels = Channel.objects.filter(is_catchup=True)
-            if not catchup_channels.exists():
+            channels = Channel.objects.select_related('channel_group').annotate(
+                source_count=Count('streams'),
+            )
+            if not channels.exists():
                 return metrics
 
-            metrics.append("# HELP dispatcharr_channel_catchup_enabled Whether catch-up (timeshift) is enabled for this channel")
-            metrics.append("# TYPE dispatcharr_channel_catchup_enabled gauge")
-            metrics.append("# HELP dispatcharr_channel_catchup_days Number of days of catch-up buffer configured for this channel")
+            metrics.append("# HELP dispatcharr_channel_info Per-channel static configuration (group, catch-up, output visibility)")
+            metrics.append("# TYPE dispatcharr_channel_info gauge")
+            metrics.append("# HELP dispatcharr_channel_source_count Number of streams/sources configured for this channel")
+            metrics.append("# TYPE dispatcharr_channel_source_count gauge")
+            metrics.append("# HELP dispatcharr_channel_catchup_days Number of days of catch-up buffer configured for this channel (0 if catch-up is disabled or unsupported)")
             metrics.append("# TYPE dispatcharr_channel_catchup_days gauge")
 
-            for channel in catchup_channels:
-                labels = (
+            for channel in channels:
+                channel_group_name = channel.channel_group.name if channel.channel_group else ''
+                catchup_enabled = getattr(channel, 'is_catchup', False)
+                catchup_days = getattr(channel, 'catchup_days', 0) or 0
+
+                base_labels = (
                     f'channel_id="{channel.id}",'
                     f'channel_number="{channel.channel_number}",'
                     f'channel_name="{escape_label(channel.name)}"'
                 )
-                metrics.append(f'dispatcharr_channel_catchup_enabled{{{labels}}} 1')
-                metrics.append(f'dispatcharr_channel_catchup_days{{{labels}}} {channel.catchup_days or 0}')
+
+                info_labels = base_labels + (
+                    f',uuid="{channel.uuid}",'
+                    f'channel_group="{escape_label(channel_group_name)}",'
+                    f'tvg_id="{escape_label(channel.tvg_id)}",'
+                    f'catchup_enabled="{str(bool(catchup_enabled)).lower()}",'
+                    f'hidden_from_output="{str(bool(getattr(channel, "hidden_from_output", False))).lower()}"'
+                )
+                metrics.append(f'dispatcharr_channel_info{{{info_labels}}} 1')
+                metrics.append(f'dispatcharr_channel_source_count{{{base_labels}}} {channel.source_count}')
+                metrics.append(f'dispatcharr_channel_catchup_days{{{base_labels}}} {catchup_days}')
         except Exception as e:
-            # AttributeError/FieldError on older Dispatcharr builds without
-            # the timeshift fields; log at debug so it doesn't spam.
-            logger.debug(f"Skipping channel catch-up metrics (unsupported Dispatcharr version?): {e}")
+            logger.error(f"Error collecting channel info metrics: {e}")
 
         return metrics
 

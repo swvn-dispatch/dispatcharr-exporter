@@ -65,13 +65,13 @@ dispatcharr_exporter_info{version="1.2.0"} 1
 - `include_source_urls` - Source URLs included (true/false)
 - `include_user_stats` - User stats included (true/false)
 - `include_plugin_stats` - Plugin stats included (true/false)
-- `include_catchup_stats` - Channel catch-up (timeshift) config stats included (true/false)
+- `include_channel_info` - Per-channel info stats included (true/false)
 
 **Description:** Info metric showing all exporter configuration settings.
 
 **Example:**
 ```
-dispatcharr_exporter_settings_info{auto_start="true",suppress_access_logs="true",port="9192",host="0.0.0.0",base_url="",include_m3u_stats="true",include_epg_stats="false",include_client_stats="false",include_source_urls="false",include_user_stats="false",include_plugin_stats="false",include_catchup_stats="false"} 1
+dispatcharr_exporter_settings_info{auto_start="true",suppress_access_logs="true",port="9192",host="0.0.0.0",base_url="",include_m3u_stats="true",include_epg_stats="false",include_client_stats="false",include_source_urls="false",include_user_stats="false",include_plugin_stats="false",include_channel_info="false"} 1
 ```
 
 ### `dispatcharr_exporter_port`
@@ -233,31 +233,51 @@ dispatcharr_channels{status="total"} 250
 dispatcharr_channel_groups 15
 ```
 
-### `dispatcharr_channel_catchup_enabled`
+### `dispatcharr_channel_info`
 
-*Optional metric - disabled by default via `include_catchup_stats` setting*
+*Optional metric - disabled by default via `include_channel_info` setting*
 
 **Type:** gauge  
-**Value:** 1 (only emitted for channels with catch-up enabled)  
+**Value:** Always 1  
 **Labels:**
 - `channel_id` - Channel ID
 - `channel_number` - Channel number
 - `channel_name` - Channel name
+- `uuid` - Channel UUID
+- `channel_group` - Channel group name (empty string if ungrouped)
+- `tvg_id` - TVG guide ID
+- `catchup_enabled` - Whether catch-up (timeshift) is enabled (`"true"`/`"false"`; always `"false"` on Dispatcharr builds without the timeshift app)
+- `hidden_from_output` - Whether the channel is hidden from HDHR/M3U/EPG/XC output (`"true"`/`"false"`)
 
-**Description:** Indicates catch-up (timeshift) is enabled for this channel. Only present on Dispatcharr builds that include the timeshift app.
+**Description:** Static per-channel configuration, emitted for every channel.
 
 **Example:**
 ```
-dispatcharr_channel_catchup_enabled{channel_id="12",channel_number="101",channel_name="ESPN"} 1
+dispatcharr_channel_info{channel_id="12",channel_number="101",channel_name="ESPN",uuid="12572661-bc4b-4937-8501-665c8a4ca1e1",channel_group="Sports",tvg_id="espn.us",catchup_enabled="true",hidden_from_output="false"} 1
+```
+
+### `dispatcharr_channel_source_count`
+
+*Optional metric - disabled by default via `include_channel_info` setting*
+
+**Type:** gauge  
+**Value:** Number of streams/sources configured for this channel  
+**Labels:** `channel_id`, `channel_number`, `channel_name`
+
+**Description:** Count of streams attached to this channel (`channel.streams.count()`), regardless of whether any are currently active.
+
+**Example:**
+```
+dispatcharr_channel_source_count{channel_id="12",channel_number="101",channel_name="ESPN"} 3
 ```
 
 ### `dispatcharr_channel_catchup_days`
 
-*Optional metric - disabled by default via `include_catchup_stats` setting*
+*Optional metric - disabled by default via `include_channel_info` setting*
 
 **Type:** gauge  
-**Value:** Number of days of catch-up buffer  
-**Labels:** Same as `dispatcharr_channel_catchup_enabled`
+**Value:** Number of days of catch-up buffer (0 if catch-up is disabled or unsupported)  
+**Labels:** `channel_id`, `channel_number`, `channel_name`
 
 **Description:** Configured catch-up buffer length in days for this channel.
 
