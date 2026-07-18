@@ -94,13 +94,12 @@ class PrometheusMetricsCollector:
         if not settings or settings.get('include_m3u_stats', True):
             metrics.extend(self._collect_profile_metrics())
 
-        # Stream metrics (live + VOD)
+        # Stream metrics (live + VOD + timeshift)
         metrics.extend(self._collect_stream_metrics(settings))
 
         # Client connection metrics
         if settings and settings.get('include_client_stats', False):
             metrics.extend(self._collect_client_metrics())
-            metrics.extend(self._collect_timeshift_metrics())
 
         # Plugin metrics
         if settings and settings.get('include_plugin_stats', False):
@@ -217,7 +216,7 @@ class PrometheusMetricsCollector:
         try:
             channels = Channel.objects.select_related('channel_group').annotate(
                 source_count=Count('streams'),
-            )
+            ).order_by('channel_number')
             if not channels.exists():
                 return metrics
 
@@ -396,7 +395,7 @@ class PrometheusMetricsCollector:
         settings = settings or {}
 
         metrics = []
-        metrics.append("# HELP dispatcharr_active_streams Total number of active streams (live and VOD)")
+        metrics.append("# HELP dispatcharr_active_streams Total number of active streams (live, VOD, and timeshift)")
         metrics.append("# TYPE dispatcharr_active_streams gauge")
 
         metrics.append("# HELP dispatcharr_stream_channel_number Channel number for active stream (live only)")
@@ -407,7 +406,7 @@ class PrometheusMetricsCollector:
         metrics.append("# TYPE dispatcharr_stream_index gauge")
         metrics.append("# HELP dispatcharr_stream_available_streams Total number of streams configured for channel (live only)")
         metrics.append("# TYPE dispatcharr_stream_available_streams gauge")
-        metrics.append("# HELP dispatcharr_stream_metadata Stream metadata (type: live/vod, state values: active, waiting_for_clients, buffering, stopping, error, unknown)")
+        metrics.append("# HELP dispatcharr_stream_metadata Stream metadata (type: live/vod/timeshift, state values: active, paused, waiting_for_clients, buffering, stopping, error, unknown)")
         metrics.append("# TYPE dispatcharr_stream_metadata gauge")
         metrics.append("# HELP dispatcharr_stream_programming Current EPG program information for active streams (live only)")
         metrics.append("# TYPE dispatcharr_stream_programming gauge")
@@ -439,6 +438,7 @@ class PrometheusMetricsCollector:
                 active_streams = 0
                 active_live_streams = 0
                 active_vod_streams = 0
+                active_timeshift_streams = 0
                 stream_value_metrics = []
 
                 # ── Live channel streams ─────────────────────────────────────
@@ -991,10 +991,92 @@ class PrometheusMetricsCollector:
                 except Exception as e:
                     logger.debug(f"Error scanning VOD connection keys: {e}")
 
+                # ── Timeshift (catch-up) streams ─────────────────────────────
+                try:
+                    from apps.timeshift.stats import build_timeshift_stats_data
+
+                    timeshift_data = build_timeshift_stats_data(self.redis_client)
+                    _ts_channel_cache = {}
+
+                    def _resolve_ts_channel(channel_id):
+                        if channel_id not in _ts_channel_cache:
+                            try:
+                                _ts_channel_cache[channel_id] = Channel.objects.select_related('channel_group').get(id=channel_id)
+                            except Exception:
+                                _ts_channel_cache[channel_id] = None
+                        return _ts_channel_cache[channel_id]
+
+                    for session in timeshift_data.get('timeshift_sessions', []):
+                        try:
+                            active_streams += 1
+                            active_timeshift_streams += 1
+
+                            channel_id = session.get('channel_id')
+                            channel = _resolve_ts_channel(channel_id)
+                            channel_number = getattr(channel, 'channel_number', 'N/A') if channel else 'N/A'
+                            channel_group = channel.channel_group.name if channel and channel.channel_group else 'none'
+
+                            stats_channel_id = session.get('stats_channel_id', '')
+                            real_channel_uuid = session.get('channel_uuid', '')
+                            session_id = session.get('session_id', '')
+                            channel_name = session.get('channel_name', 'Catch-up')
+
+                            base_labels = [
+                                f'type="timeshift"',
+                                f'channel_uuid="{escape_label(stats_channel_id)}"',
+                                f'channel_number="{channel_number}"',
+                            ]
+                            base_labels_str = ",".join(base_labels)
+
+                            try:
+                                channel_number_value = float(channel_number)
+                            except (ValueError, TypeError):
+                                channel_number_value = 0.0
+
+                            state = "paused" if session.get('paused') else "active"
+
+                            metadata_labels = base_labels + [
+                                f'channel_name="{escape_label(channel_name)}"',
+                                f'channel_group="{escape_label(channel_group)}"',
+                                f'real_channel_uuid="{escape_label(real_channel_uuid)}"',
+                                f'session_id="{escape_label(session_id)}"',
+                                f'state="{state}"',
+                                f'video_codec="{escape_label(session.get("video_codec", ""))}"',
+                                f'resolution="{escape_label(session.get("resolution", ""))}"',
+                                f'audio_codec="{escape_label(session.get("audio_codec", ""))}"',
+                                f'stream_type="{escape_label(session.get("stream_type", ""))}"',
+                            ]
+
+                            connections = session.get('connections', [])
+
+                            stream_value_metrics.append(f'dispatcharr_stream_channel_number{{{base_labels_str}}} {channel_number_value}')
+                            stream_value_metrics.append(f'dispatcharr_stream_active_clients{{{base_labels_str}}} {session.get("connection_count", len(connections))}')
+
+                            if connections:
+                                connected_ats = [c.get('connected_at') for c in connections if c.get('connected_at')]
+                                if connected_ats:
+                                    uptime_seconds = max(0, int(time.time() - min(connected_ats)))
+                                    stream_value_metrics.append(f'dispatcharr_stream_uptime_seconds{{{base_labels_str}}} {uptime_seconds}')
+
+                                avg_bitrate_bps = (connections[0].get('avg_bitrate_kbps') or 0) * 1000
+                                if avg_bitrate_bps > 0:
+                                    stream_value_metrics.append(f'dispatcharr_stream_avg_bitrate_bps{{{base_labels_str}}} {avg_bitrate_bps}')
+
+                            stream_value_metrics.append(f'dispatcharr_stream_metadata{{{",".join(metadata_labels)}}} 1')
+
+                        except Exception as e:
+                            logger.debug(f"Error processing timeshift session {session.get('session_id')}: {e}")
+
+                except ImportError:
+                    pass  # Older Dispatcharr builds without the timeshift app
+                except Exception as e:
+                    logger.debug(f"Error collecting timeshift stream metrics: {e}")
+
                 # Emit totals and collected metrics
                 metrics.append(f"dispatcharr_active_streams {active_streams}")
                 metrics.append(f'dispatcharr_active_streams{{type="live"}} {active_live_streams}')
                 metrics.append(f'dispatcharr_active_streams{{type="vod"}} {active_vod_streams}')
+                metrics.append(f'dispatcharr_active_streams{{type="timeshift"}} {active_timeshift_streams}')
                 for metric in stream_value_metrics:
                     metrics.append(metric)
 
@@ -1395,74 +1477,6 @@ class PrometheusMetricsCollector:
 
         except Exception as e:
             logger.error(f"Error collecting client metrics: {e}")
-
-        metrics.append("")
-        return metrics
-
-    def _collect_timeshift_metrics(self) -> list:
-        """Collect catch-up (timeshift) session-level metrics.
-
-        Per-client connection detail is folded into the existing
-        ``dispatcharr_client_*`` metrics (type="timeshift") in
-        ``_collect_client_metrics``, matching how VOD clients are already
-        handled. This method only covers session-level facts that have no
-        live/VOD analog (paused state, stream metadata, connection count per
-        session). Reuses Dispatcharr's own ``build_timeshift_stats_data``
-        aggregator (same one that powers the admin catch-up stats UI) instead
-        of reimplementing the Redis scan. Older Dispatcharr builds without the
-        timeshift app degrade to an empty metric list.
-        """
-        try:
-            from apps.timeshift.stats import build_timeshift_stats_data
-        except ImportError:
-            return []
-
-        metrics = []
-        try:
-            data = build_timeshift_stats_data(self.redis_client)
-            sessions = data.get('timeshift_sessions', [])
-
-            metrics.append("# HELP dispatcharr_timeshift_sessions Total number of active catch-up (timeshift) sessions")
-            metrics.append("# TYPE dispatcharr_timeshift_sessions gauge")
-            metrics.append(f"dispatcharr_timeshift_sessions {len(sessions)}")
-
-            metrics.append("# HELP dispatcharr_timeshift_connections Total number of active catch-up connections across all sessions")
-            metrics.append("# TYPE dispatcharr_timeshift_connections gauge")
-            metrics.append(f"dispatcharr_timeshift_connections {data.get('total_connections', 0)}")
-
-            metrics.append("# HELP dispatcharr_timeshift_session_info Catch-up session metadata")
-            metrics.append("# TYPE dispatcharr_timeshift_session_info gauge")
-            metrics.append("# HELP dispatcharr_timeshift_session_connection_count Number of client connections attached to this catch-up session")
-            metrics.append("# TYPE dispatcharr_timeshift_session_connection_count gauge")
-
-            for session in sessions:
-                session_id = escape_label(session.get('session_id', ''))
-                channel_id = session.get('channel_id', '')
-                channel_uuid = escape_label(session.get('channel_uuid', ''))
-                channel_name = escape_label(session.get('channel_name', ''))
-
-                session_labels = (
-                    f'session_id="{session_id}",'
-                    f'channel_id="{channel_id}",'
-                    f'channel_uuid="{channel_uuid}",'
-                    f'channel_name="{channel_name}",'
-                    f'paused="{str(bool(session.get("paused"))).lower()}",'
-                    f'resolution="{escape_label(session.get("resolution", ""))}",'
-                    f'video_codec="{escape_label(session.get("video_codec", ""))}",'
-                    f'audio_codec="{escape_label(session.get("audio_codec", ""))}",'
-                    f'stream_type="{escape_label(session.get("stream_type", ""))}"'
-                )
-                metrics.append(f'dispatcharr_timeshift_session_info{{{session_labels}}} 1')
-
-                count_labels = (
-                    f'session_id="{session_id}",'
-                    f'channel_id="{channel_id}",'
-                    f'channel_name="{channel_name}"'
-                )
-                metrics.append(f'dispatcharr_timeshift_session_connection_count{{{count_labels}}} {session.get("connection_count", 0)}')
-
-        except Exception as e:
-            logger.error(f"Error collecting timeshift metrics: {e}")
 
         metrics.append("")
         return metrics

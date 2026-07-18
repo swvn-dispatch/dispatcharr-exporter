@@ -13,7 +13,6 @@ Complete reference for all metrics exposed by the Dispatcharr Prometheus Exporte
 - [Profile Metrics](#profile-metrics)
 - [Client Connection Metrics](#client-connection-metrics)
 - [User Metrics](#user-metrics)
-- [Timeshift Metrics](#timeshift-metrics)
 - [Plugin Metrics](#plugin-metrics)
 
 ---
@@ -290,13 +289,14 @@ dispatcharr_channel_catchup_days{channel_id="12",channel_number="101",channel_na
 
 ## Stream Metrics
 
-**Important:** All stream metrics include both live channel streams and VOD streams, differentiated by the `type` label:
+**Important:** All stream metrics include live channel streams, VOD streams, and catch-up (timeshift) sessions, differentiated by the `type` label:
 - `type="live"` - Live channel streams
 - `type="vod"` - VOD streams
+- `type="timeshift"` - Catch-up/timeshift sessions (only present on Dispatcharr builds that include the timeshift app; `channel_uuid` is a per-session stats ID, not the real channel UUID — see `real_channel_uuid` in `dispatcharr_stream_metadata`)
 
-Both types use the same base label structure:
-- `channel_uuid` - Unique stream identifier (channel UUID for live, full session_id for VOD)
-- `channel_number` - Stream number (channel number for live, numeric timestamp for VOD)
+All types use the same base label structure:
+- `channel_uuid` - Unique stream identifier (channel UUID for live, full session_id for VOD, per-session stats ID for timeshift)
+- `channel_number` - Stream number (channel number for live/timeshift, numeric timestamp for VOD)
 
 VOD streams include additional metadata labels:
 - `channel_name` - Content title (movie/episode name)
@@ -305,7 +305,14 @@ VOD streams include additional metadata labels:
 - `content_type` - "movie" or "episode"
 - For episodes: `season_number`, `episode_number`, `series_name`
 
-Some metrics are only available for live streams (stream index, available streams, EPG programming). VOD streams do not populate stream_profile (transcode profile) as this data is not stored in Redis.
+Timeshift streams include additional metadata labels:
+- `channel_name`, `channel_group` - Same channel the catch-up session is playing from
+- `real_channel_uuid` - The actual channel UUID (since `channel_uuid` above is a per-session stats ID)
+- `session_id` - Catch-up session ID
+- `video_codec`, `resolution`, `audio_codec`, `stream_type` - Stream metadata
+- `state` includes `"paused"` in addition to the usual values when playback is paused
+
+Some metrics are only available for live streams (stream index, available streams, EPG programming). VOD and timeshift streams do not populate stream_profile (transcode profile) as this data is not stored in Redis.
 
 ### Value Metrics (Minimal Labels)
 
@@ -316,15 +323,16 @@ All value metrics use minimal identifying labels (`type` plus stream-specific id
 **Value:** Count of active streams  
 **Labels:**
 - None (total), or
-- `type` - "live" or "vod" (per-type breakdown)
+- `type` - "live", "vod", or "timeshift" (per-type breakdown)
 
 **Description:** Total number of currently active streams. Emitted as a total and per-type breakdown.
 
 **Example:**
 ```
-dispatcharr_active_streams 12
+dispatcharr_active_streams 13
 dispatcharr_active_streams{type="live"} 8
 dispatcharr_active_streams{type="vod"} 4
+dispatcharr_active_streams{type="timeshift"} 1
 ```
 
 #### `dispatcharr_stream_uptime_seconds`
@@ -540,23 +548,19 @@ dispatcharr_stream_index >= dispatcharr_stream_available_streams - 1
 **Type:** gauge  
 **Value:** Always 1  
 **Labels:**
-- `type` - Stream type: "live" or "vod"
+- `type` - Stream type: "live", "vod", or "timeshift"
 - `channel_uuid` - Stream identifier
 - `channel_number` - Stream number (numeric)
 - `channel_name` - Channel/content name
 - `channel_group` - Channel group or content category (empty string if none)
-- `provider` - M3U account/provider name
-- `provider_type` - Provider type (XC, STD, etc.)
-- `state` - Stream state (active, waiting_for_clients, buffering, error, etc.)
-- `logo_url` - Logo URL (empty string if none)
-- `profile_id` - M3U profile database ID
-- `profile_name` - M3U profile name
-- `stream_profile` - Transcode profile name (empty string for VOD)
+- `state` - Stream state (active, paused [timeshift only], waiting_for_clients, buffering, error, etc.)
 - `video_codec` - Video codec (empty string if unknown)
 - `resolution` - Video resolution (empty string if unknown)
+- Live/VOD-specific: `provider`, `provider_type`, `logo_url`, `profile_id`, `profile_name`, `stream_profile` (not populated for timeshift)
 - Live-specific: `stream_id`, `stream_name`
 - VOD-specific: `content_uuid`, `content_type` (movie/episode)
 - Episode-specific: `season_number`, `episode_number`, `series_name`
+- Timeshift-specific: `real_channel_uuid` (actual channel UUID — `channel_uuid` above is a per-session stats ID), `session_id`, `audio_codec`, `stream_type`
 
 **Description:** Full metadata for the active stream. Unknown/unavailable values are empty strings, not "unknown".
 
@@ -573,6 +577,11 @@ dispatcharr_stream_metadata{type="vod",channel_uuid="vod_1771265648474_7145",cha
 **Example (VOD Episode):**
 ```
 dispatcharr_stream_metadata{type="vod",channel_uuid="vod_1771265648475_8156",channel_number="1771265648475",content_uuid="abc123-def456",channel_name="The Big Episode",channel_group="Drama",content_type="episode",season_number="3",episode_number="5",series_name="Great Show",provider="Provider A",provider_type="XC",state="active",logo_url="http://example.com/api/vod/vodlogos/12345/cache/",profile_id="24",profile_name="Default",stream_profile="",video_codec="h264",resolution="1920x1080"} 1
+```
+
+**Example (Timeshift):**
+```
+dispatcharr_stream_metadata{type="timeshift",channel_uuid="177_T72IALNSc6edl9XWKJYr8g",channel_number="101",channel_name="UK | TNT Sports 1",channel_group="Sports",real_channel_uuid="495bcfd9-af66-473e-8fe8-dc546ca10a66",session_id="T72IALNSc6edl9XWKJYr8g",state="active",video_codec="h264",resolution="1920x1080",audio_codec="aac",stream_type="MPEG-TS"} 1
 ```
 
 #### `dispatcharr_stream_programming`
@@ -1037,63 +1046,6 @@ dispatcharr_user_active_streams >= dispatcharr_user_stream_limit
 
 # Account age in days
 (time() - dispatcharr_user_date_joined_timestamp) / 86400
-```
-
----
-
-## Timeshift Metrics
-
-*Optional metrics - disabled by default via `include_client_stats` setting*
-
-These metrics expose catch-up (timeshift) session-level information, reusing the same admin catch-up stats aggregator Dispatcharr itself uses. Only present on Dispatcharr builds that include the timeshift app. Per-client connection detail (IP address, user agent, bytes sent, transfer rate) is **not** duplicated here — it's folded into the existing [Client Connection Metrics](#client-connection-metrics) (`dispatcharr_client_info` and friends) with `type="timeshift"`, alongside `"live"` and `"vod"`.
-
-### `dispatcharr_timeshift_sessions`
-**Type:** gauge  
-**Value:** Count of active catch-up sessions  
-**Labels:** None
-
-**Example:**
-```
-dispatcharr_timeshift_sessions 3
-```
-
-### `dispatcharr_timeshift_connections`
-**Type:** gauge  
-**Value:** Count of active catch-up client connections across all sessions  
-**Labels:** None
-
-**Example:**
-```
-dispatcharr_timeshift_connections 4
-```
-
-### `dispatcharr_timeshift_session_info`
-**Type:** gauge  
-**Value:** Always 1  
-**Labels:**
-- `session_id` - Catch-up session ID
-- `channel_id` - Channel ID
-- `channel_uuid` - Channel UUID
-- `channel_name` - Channel name
-- `paused` - Whether playback is paused (`"true"` / `"false"`)
-- `resolution`, `video_codec`, `audio_codec`, `stream_type` - Stream metadata
-
-**Example:**
-```
-dispatcharr_timeshift_session_info{session_id="ab12",channel_id="12",channel_uuid="...",channel_name="ESPN",paused="false",resolution="1920x1080",video_codec="h264",audio_codec="aac",stream_type="hls"} 1
-```
-
-### `dispatcharr_timeshift_session_connection_count`
-**Type:** gauge  
-**Value:** Number of client connections attached to this session  
-**Labels:**
-- `session_id` - Catch-up session ID
-- `channel_id` - Channel ID
-- `channel_name` - Channel name
-
-**Example:**
-```
-dispatcharr_timeshift_session_connection_count{session_id="ab12",channel_id="12",channel_name="ESPN"} 1
 ```
 
 ---
