@@ -13,6 +13,7 @@ Complete reference for all metrics exposed by the Dispatcharr Prometheus Exporte
 - [Profile Metrics](#profile-metrics)
 - [Client Connection Metrics](#client-connection-metrics)
 - [User Metrics](#user-metrics)
+- [Plugin Metrics](#plugin-metrics)
 
 ---
 
@@ -62,12 +63,14 @@ dispatcharr_exporter_info{version="1.2.0"} 1
 - `include_client_stats` - Client stats included (true/false)
 - `include_source_urls` - Source URLs included (true/false)
 - `include_user_stats` - User stats included (true/false)
+- `include_plugin_stats` - Plugin stats included (true/false)
+- `include_channel_info` - Per-channel info stats included (true/false)
 
 **Description:** Info metric showing all exporter configuration settings.
 
 **Example:**
 ```
-dispatcharr_exporter_settings_info{auto_start="true",suppress_access_logs="true",port="9192",host="0.0.0.0",base_url="",include_m3u_stats="true",include_epg_stats="false",include_client_stats="false",include_source_urls="false",include_user_stats="false"} 1
+dispatcharr_exporter_settings_info{auto_start="true",suppress_access_logs="true",port="9192",host="0.0.0.0",base_url="",include_m3u_stats="true",include_epg_stats="false",include_client_stats="false",include_source_urls="false",include_user_stats="false",include_plugin_stats="false",include_channel_info="false"} 1
 ```
 
 ### `dispatcharr_exporter_port`
@@ -229,17 +232,71 @@ dispatcharr_channels{status="total"} 250
 dispatcharr_channel_groups 15
 ```
 
+### `dispatcharr_channel_info`
+
+*Optional metric - disabled by default via `include_channel_info` setting*
+
+**Type:** gauge  
+**Value:** Always 1  
+**Labels:**
+- `channel_id` - Channel ID
+- `channel_number` - Channel number
+- `channel_name` - Channel name
+- `uuid` - Channel UUID
+- `channel_group` - Channel group name (empty string if ungrouped)
+- `tvg_id` - TVG guide ID
+- `catchup_enabled` - Whether catch-up (timeshift) is enabled (`"true"`/`"false"`; always `"false"` on Dispatcharr builds without the timeshift app)
+- `hidden_from_output` - Whether the channel is hidden from HDHR/M3U/EPG/XC output (`"true"`/`"false"`)
+
+**Description:** Static per-channel configuration, emitted for every channel.
+
+**Example:**
+```
+dispatcharr_channel_info{channel_id="12",channel_number="101",channel_name="ESPN",uuid="12572661-bc4b-4937-8501-665c8a4ca1e1",channel_group="Sports",tvg_id="espn.us",catchup_enabled="true",hidden_from_output="false"} 1
+```
+
+### `dispatcharr_channel_source_count`
+
+*Optional metric - disabled by default via `include_channel_info` setting*
+
+**Type:** gauge  
+**Value:** Number of streams/sources configured for this channel  
+**Labels:** `channel_id`, `channel_number`, `channel_name`
+
+**Description:** Count of streams attached to this channel (`channel.streams.count()`), regardless of whether any are currently active.
+
+**Example:**
+```
+dispatcharr_channel_source_count{channel_id="12",channel_number="101",channel_name="ESPN"} 3
+```
+
+### `dispatcharr_channel_catchup_days`
+
+*Optional metric - disabled by default via `include_channel_info` setting*
+
+**Type:** gauge  
+**Value:** Number of days of catch-up buffer (0 if catch-up is disabled or unsupported)  
+**Labels:** `channel_id`, `channel_number`, `channel_name`
+
+**Description:** Configured catch-up buffer length in days for this channel.
+
+**Example:**
+```
+dispatcharr_channel_catchup_days{channel_id="12",channel_number="101",channel_name="ESPN"} 7
+```
+
 ---
 
 ## Stream Metrics
 
-**Important:** All stream metrics include both live channel streams and VOD streams, differentiated by the `type` label:
+**Important:** All stream metrics include live channel streams, VOD streams, and catch-up (timeshift) sessions, differentiated by the `type` label:
 - `type="live"` - Live channel streams
 - `type="vod"` - VOD streams
+- `type="timeshift"` - Catch-up/timeshift sessions (only present on Dispatcharr builds that include the timeshift app; `channel_uuid` is a per-session stats ID, not the real channel UUID — see `real_channel_uuid` in `dispatcharr_stream_metadata`)
 
-Both types use the same base label structure:
-- `channel_uuid` - Unique stream identifier (channel UUID for live, full session_id for VOD)
-- `channel_number` - Stream number (channel number for live, numeric timestamp for VOD)
+All types use the same base label structure:
+- `channel_uuid` - Unique stream identifier (channel UUID for live, full session_id for VOD, per-session stats ID for timeshift)
+- `channel_number` - Stream number (channel number for live/timeshift, numeric timestamp for VOD)
 
 VOD streams include additional metadata labels:
 - `channel_name` - Content title (movie/episode name)
@@ -248,7 +305,14 @@ VOD streams include additional metadata labels:
 - `content_type` - "movie" or "episode"
 - For episodes: `season_number`, `episode_number`, `series_name`
 
-Some metrics are only available for live streams (stream index, available streams, EPG programming). VOD streams do not populate stream_profile (transcode profile) as this data is not stored in Redis.
+Timeshift streams include additional metadata labels:
+- `channel_name`, `channel_group` - Same channel the catch-up session is playing from
+- `real_channel_uuid` - The actual channel UUID (since `channel_uuid` above is a per-session stats ID)
+- `session_id` - Catch-up session ID
+- `video_codec`, `resolution`, `audio_codec`, `stream_type` - Stream metadata
+- `state` includes `"paused"` in addition to the usual values when playback is paused
+
+Some metrics are only available for live streams (stream index, available streams, EPG programming). VOD and timeshift streams do not populate stream_profile (transcode profile) as this data is not stored in Redis.
 
 ### Value Metrics (Minimal Labels)
 
@@ -259,15 +323,16 @@ All value metrics use minimal identifying labels (`type` plus stream-specific id
 **Value:** Count of active streams  
 **Labels:**
 - None (total), or
-- `type` - "live" or "vod" (per-type breakdown)
+- `type` - "live", "vod", or "timeshift" (per-type breakdown)
 
 **Description:** Total number of currently active streams. Emitted as a total and per-type breakdown.
 
 **Example:**
 ```
-dispatcharr_active_streams 12
+dispatcharr_active_streams 13
 dispatcharr_active_streams{type="live"} 8
 dispatcharr_active_streams{type="vod"} 4
+dispatcharr_active_streams{type="timeshift"} 1
 ```
 
 #### `dispatcharr_stream_uptime_seconds`
@@ -483,23 +548,21 @@ dispatcharr_stream_index >= dispatcharr_stream_available_streams - 1
 **Type:** gauge  
 **Value:** Always 1  
 **Labels:**
-- `type` - Stream type: "live" or "vod"
+- `type` - Stream type: "live", "vod", or "timeshift"
 - `channel_uuid` - Stream identifier
 - `channel_number` - Stream number (numeric)
 - `channel_name` - Channel/content name
 - `channel_group` - Channel group or content category (empty string if none)
-- `provider` - M3U account/provider name
-- `provider_type` - Provider type (XC, STD, etc.)
-- `state` - Stream state (active, waiting_for_clients, buffering, error, etc.)
-- `logo_url` - Logo URL (empty string if none)
-- `profile_id` - M3U profile database ID
-- `profile_name` - M3U profile name
-- `stream_profile` - Transcode profile name (empty string for VOD)
+- `state` - Stream state (active, paused [timeshift only], waiting_for_clients, buffering, error, etc.)
 - `video_codec` - Video codec (empty string if unknown)
 - `resolution` - Video resolution (empty string if unknown)
+- `logo_url` - Logo URL (empty string if none) — populated for all three types
+- `provider`, `provider_type`, `profile_id`, `profile_name` - Active M3U provider/profile (live, VOD, and timeshift — for timeshift this reflects the first connection's upstream profile)
+- Live/VOD-specific: `stream_profile` (transcode profile; not available for timeshift)
 - Live-specific: `stream_id`, `stream_name`
 - VOD-specific: `content_uuid`, `content_type` (movie/episode)
 - Episode-specific: `season_number`, `episode_number`, `series_name`
+- Timeshift-specific: `real_channel_uuid` (actual channel UUID — `channel_uuid` above is a per-session stats ID), `session_id`, `audio_codec`, `stream_type`
 
 **Description:** Full metadata for the active stream. Unknown/unavailable values are empty strings, not "unknown".
 
@@ -518,12 +581,17 @@ dispatcharr_stream_metadata{type="vod",channel_uuid="vod_1771265648474_7145",cha
 dispatcharr_stream_metadata{type="vod",channel_uuid="vod_1771265648475_8156",channel_number="1771265648475",content_uuid="abc123-def456",channel_name="The Big Episode",channel_group="Drama",content_type="episode",season_number="3",episode_number="5",series_name="Great Show",provider="Provider A",provider_type="XC",state="active",logo_url="http://example.com/api/vod/vodlogos/12345/cache/",profile_id="24",profile_name="Default",stream_profile="",video_codec="h264",resolution="1920x1080"} 1
 ```
 
+**Example (Timeshift):**
+```
+dispatcharr_stream_metadata{type="timeshift",channel_uuid="177_T72IALNSc6edl9XWKJYr8g",channel_number="101",channel_name="UK | TNT Sports 1",channel_group="Sports",real_channel_uuid="495bcfd9-af66-473e-8fe8-dc546ca10a66",session_id="T72IALNSc6edl9XWKJYr8g",state="active",logo_url="/api/channels/logos/1/cache/",video_codec="h264",resolution="1920x1080",audio_codec="aac",stream_type="MPEG-TS",provider="Provider A",provider_type="XC",profile_id="3",profile_name="Default"} 1
+```
+
 #### `dispatcharr_stream_programming`
 **Type:** gauge  
 **Value:** Current program/content progress (0.0 to 1.0), or 0.0 if no current program  
 **Labels:**
-- `type` - Stream type: "live" or "vod"
-- `channel_uuid` - Channel UUID (or VOD session ID for VOD content)
+- `type` - Stream type: "live", "vod", or "timeshift"
+- `channel_uuid` - Channel UUID (real channel UUID for live, VOD session ID for VOD, per-session stats ID for timeshift)
 - `channel_number` - Channel number (or VOD session timestamp)
 - `previous_title` - Previous program title (empty string if none; not used for VOD)
 - `previous_subtitle` - Previous program subtitle/episode (empty string if none; not used for VOD)
@@ -534,6 +602,7 @@ dispatcharr_stream_metadata{type="vod",channel_uuid="vod_1771265648475_8156",cha
   - **Live TV**: EPG program title
   - **VOD Movies**: Movie name
   - **VOD Episodes**: Series name
+  - **Timeshift**: EPG program title, prefixed `"Catchup-MM-DD-HH:MM: "` where the timestamp is the catch-up position being watched, e.g. `"Catchup-07-18-14:30: The Evening News"`
 - `current_subtitle` - Current program subtitle/episode (empty string if none)
   - **Live TV**: EPG episode/subtitle
   - **VOD Movies**: "Year - Genre" (e.g., "1999 - Action, Sci-Fi")
@@ -556,12 +625,18 @@ dispatcharr_stream_metadata{type="vod",channel_uuid="vod_1771265648475_8156",cha
 **Description:** 
 - **Live TV**: EPG program schedule information for the active stream. Only present if channel has EPG data assigned. The metric value represents how far into the current program we are (0.0 = just started, 1.0 = about to end). Labels provide previous, current, and next program information.
 - **VOD**: Rich content metadata including title, description, year, genre, rating, and viewing progress. The metric value represents how far into the content the viewer is (based on elapsed time vs. duration).
+- **Timeshift**: Same EPG schedule lookup as live TV, but anchored to the catch-up position being watched (the timestamp requested in the catch-up URL) rather than real time — so it reflects what's playing in the recording, not what's live on the channel right now. Requires the channel to have EPG data assigned. The current program's title is prefixed to make it visually obvious this is a catch-up view, not live.
 
 > **Note for Live TV:** This metric only works with actual EPG data. Channels using placeholder or dummy EPG sources will not have this metric.
 
 **Example (Live TV with EPG):**
 ```
 dispatcharr_stream_programming{type="live",channel_uuid="12572661-bc4b-4937-8501-665c8a4ca1e1",channel_number="1001.0",previous_title="Afternoon News",previous_subtitle="",previous_description="Local and national news coverage",previous_start_time="2026-01-02T17:00:00+00:00",previous_end_time="2026-01-02T18:00:00+00:00",current_title="The Evening News",current_subtitle="Special Report",current_description="Breaking news and analysis",current_start_time="2026-01-02T18:00:00+00:00",current_end_time="2026-01-02T19:00:00+00:00",next_title="Prime Time Drama",next_subtitle="Season 3 Episode 5",next_description="An exciting episode",next_start_time="2026-01-02T19:00:00+00:00",next_end_time="2026-01-02T20:00:00+00:00"} 0.5833
+```
+
+**Example (Timeshift with EPG):**
+```
+dispatcharr_stream_programming{type="timeshift",channel_uuid="177_T72IALNSc6edl9XWKJYr8g",channel_number="101",previous_title="Afternoon News",previous_subtitle="",previous_description="Local and national news coverage",previous_start_time="2026-07-18T17:00:00+00:00",previous_end_time="2026-07-18T18:00:00+00:00",current_title="Catchup-07-18-14:30: The Evening News",current_subtitle="Special Report",current_description="Breaking news and analysis",current_start_time="2026-07-18T18:00:00+00:00",current_end_time="2026-07-18T19:00:00+00:00",next_title="Prime Time Drama",next_subtitle="Season 3 Episode 5",next_description="An exciting episode",next_start_time="2026-07-18T19:00:00+00:00",next_end_time="2026-07-18T20:00:00+00:00"} 0.5833
 ```
 
 **Example (VOD Movie):**
@@ -626,18 +701,24 @@ dispatcharr_active_clients 15
 **Type:** gauge  
 **Value:** Always 1  
 **Labels:**
+- `type` - Connection type: `"live"`, `"vod"`, or `"timeshift"` (catch-up)
 - `client_id` - Unique client connection ID
-- `channel_uuid` - Channel UUID
+- `channel_uuid` - Channel UUID (live), session ID (VOD), or per-session stats ID (timeshift) — matches the `channel_uuid` used for the same instance in `dispatcharr_stream_metadata`, so the two families join cleanly
 - `channel_number` - Channel number
 - `ip_address` - Client IP address
 - `user_agent` - Client user agent string
-- `worker_id` - Dispatcharr worker ID handling the connection
+- `worker_id` - Dispatcharr worker ID handling the connection (live/VOD only; always `"unknown"` for timeshift, since the catch-up stats aggregator doesn't expose it)
+- `channel_name` - Channel/content name (VOD/timeshift only)
+- `real_channel_uuid` - Actual channel UUID (timeshift only — `channel_uuid` above is a per-session stats ID, not the real channel UUID)
+- `session_id` - Catch-up session ID (timeshift only)
+- `user_id`, `username` - Resolved Dispatcharr account (VOD/timeshift only)
 
-**Description:** Metadata for each connected client. Join with `dispatcharr_stream_metadata` on `channel_uuid` to get channel name.
+**Description:** Metadata for each connected client, across live channel playback, VOD, and catch-up (timeshift) sessions. Join with `dispatcharr_stream_metadata` on `channel_uuid` (and `type`) to get full stream metadata for any client.
 
 **Example:**
 ```
-dispatcharr_client_info{client_id="client_1735492847123_4567",channel_uuid="12572661-bc4b-4937-8501-665c8a4ca1e1",channel_number="1001.0",ip_address="192.168.1.100",user_agent="VLC/3.0.16 LibVLC/3.0.16",worker_id="worker_1"} 1
+dispatcharr_client_info{type="live",client_id="client_1735492847123_4567",channel_uuid="12572661-bc4b-4937-8501-665c8a4ca1e1",channel_number="1001.0",ip_address="192.168.1.100",user_agent="VLC/3.0.16 LibVLC/3.0.16",worker_id="worker_1"} 1
+dispatcharr_client_info{type="timeshift",client_id="xyz",channel_uuid="177_T72IALNSc6edl9XWKJYr8g",channel_number="101",channel_name="ESPN",real_channel_uuid="12572661-bc4b-4937-8501-665c8a4ca1e1",session_id="T72IALNSc6edl9XWKJYr8g",ip_address="10.0.0.5",user_agent="VLC/3.0",worker_id="unknown",user_id="1",username="alice"} 1
 ```
 
 ### `dispatcharr_client_connection_duration_seconds`
@@ -976,6 +1057,64 @@ dispatcharr_user_active_streams >= dispatcharr_user_stream_limit
 # Account age in days
 (time() - dispatcharr_user_date_joined_timestamp) / 86400
 ```
+
+---
+
+## Plugin Metrics
+
+*Optional metrics - disabled by default via `include_plugin_stats` setting*
+
+### `dispatcharr_plugins`
+**Type:** gauge  
+**Value:** Plugin count  
+**Labels:**
+- `status` - "total", "enabled", "deprecated", or "managed"
+
+**Example:**
+```
+dispatcharr_plugins{status="total"} 5
+dispatcharr_plugins{status="enabled"} 3
+dispatcharr_plugins{status="deprecated"} 0
+dispatcharr_plugins{status="managed"} 2
+```
+
+### `dispatcharr_plugin_info`
+**Type:** gauge  
+**Value:** Always 1  
+**Labels:**
+- `key` - Plugin key
+- `name` - Plugin name
+- `version` - Installed plugin version
+- `enabled` - Whether the plugin is enabled (`"true"` / `"false"`)
+- `deprecated` - Whether the plugin is marked deprecated (`"true"` / `"false"`)
+- `is_managed` - Whether the plugin was installed from a repo (`"true"` / `"false"`)
+
+**Example:**
+```
+dispatcharr_plugin_info{key="dispatcharr_exporter",name="Dispatcharr Exporter",version="3.1.0",enabled="true",deprecated="false",is_managed="true"} 1
+```
+
+### `dispatcharr_plugin_repos`
+**Type:** gauge  
+**Value:** Plugin repository count  
+**Labels:**
+- `status` - "total", "enabled", or "official"
+
+### `dispatcharr_plugin_repo_info`
+**Type:** gauge  
+**Value:** Always 1  
+**Labels:**
+- `name` - Repository name
+- `is_official` - Whether this is the official Dispatcharr plugin repo (`"true"` / `"false"`)
+- `enabled` - Whether the repo is enabled (`"true"` / `"false"`)
+- `signature_verified` - Manifest signature verification status (`"true"` / `"false"` / `"none"`)
+- `last_fetch_status` - Result of the last manifest fetch attempt
+- `url` - Repository manifest URL (only included when `include_source_urls` is enabled)
+
+### `dispatcharr_plugin_repo_last_fetch_timestamp`
+**Type:** gauge  
+**Value:** Unix timestamp of the last manifest fetch for this repository  
+**Labels:** `name`, `is_official`
 
 ---
 
