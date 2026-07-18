@@ -1049,9 +1049,9 @@ class PrometheusMetricsCollector:
         try:
             from apps.channels.models import Channel
 
-            metrics.append("# HELP dispatcharr_active_clients Total number of active client connections (live and VOD)")
+            metrics.append("# HELP dispatcharr_active_clients Total number of active client connections (live, VOD, and timeshift)")
             metrics.append("# TYPE dispatcharr_active_clients gauge")
-            metrics.append("# HELP dispatcharr_client_info Client connection metadata (type: live/vod)")
+            metrics.append("# HELP dispatcharr_client_info Client connection metadata (type: live/vod/timeshift)")
             metrics.append("# TYPE dispatcharr_client_info gauge")
             metrics.append("# HELP dispatcharr_client_connection_duration_seconds Duration of client connection in seconds")
             metrics.append("# TYPE dispatcharr_client_connection_duration_seconds gauge")
@@ -1301,6 +1301,77 @@ class PrometheusMetricsCollector:
             except Exception as e:
                 logger.debug(f"Error scanning VOD connections for clients: {e}")
 
+            # Timeshift (catch-up) clients
+            try:
+                from apps.timeshift.stats import build_timeshift_stats_data
+
+                timeshift_data = build_timeshift_stats_data(self.redis_client)
+                _channel_number_cache = {}
+
+                def _resolve_channel_number(channel_id):
+                    if channel_id not in _channel_number_cache:
+                        try:
+                            _channel_number_cache[channel_id] = Channel.objects.get(id=channel_id).channel_number
+                        except Exception:
+                            _channel_number_cache[channel_id] = 'N/A'
+                    return _channel_number_cache[channel_id]
+
+                for session in timeshift_data.get('timeshift_sessions', []):
+                    channel_id = session.get('channel_id')
+                    channel_uuid = session.get('channel_uuid', '')
+                    channel_name = session.get('channel_name', 'Catch-up')
+                    channel_number = _resolve_channel_number(channel_id)
+
+                    channel_uuid_safe = str(channel_uuid).replace('"', '\\"').replace('\\', '\\\\')
+                    channel_number_safe = str(channel_number).replace('"', '\\"').replace('\\', '\\\\')
+                    channel_name_safe = str(channel_name).replace('"', '\\"').replace('\\', '\\\\')
+
+                    for conn in session.get('connections', []):
+                        total_clients += 1
+
+                        client_id_safe = str(conn.get('client_id', '')).replace('"', '\\"').replace('\\', '\\\\')
+                        session_id_safe = str(conn.get('session_id', '')).replace('"', '\\"').replace('\\', '\\\\')
+                        ip_address_safe = str(conn.get('ip_address', 'unknown')).replace('"', '\\"').replace('\\', '\\\\')
+                        user_agent_safe = str(conn.get('user_agent', 'unknown')).replace('"', '\\"').replace('\\', '\\\\').replace('\n', ' ').replace('\r', '')
+                        user_id_str = str(conn.get('user_id', '0'))
+                        username_safe = str(conn.get('username', 'unknown')).replace('"', '\\"').replace('\\', '\\\\')
+
+                        base_labels = [
+                            f'type="timeshift"',
+                            f'client_id="{client_id_safe}"',
+                            f'channel_uuid="{channel_uuid_safe}"',
+                            f'channel_number="{channel_number_safe}"',
+                        ]
+                        base_labels_str = ','.join(base_labels)
+
+                        info_labels = base_labels + [
+                            f'channel_name="{channel_name_safe}"',
+                            f'session_id="{session_id_safe}"',
+                            f'ip_address="{ip_address_safe}"',
+                            f'user_agent="{user_agent_safe}"',
+                            f'user_id="{user_id_str}"',
+                            f'username="{username_safe}"',
+                        ]
+                        client_metrics.append(f'dispatcharr_client_info{{{",".join(info_labels)}}} 1')
+
+                        duration = conn.get('duration', 0)
+                        if duration > 0:
+                            client_metrics.append(f'dispatcharr_client_connection_duration_seconds{{{base_labels_str}}} {duration}')
+
+                        bytes_streamed = conn.get('bytes_streamed', 0)
+                        if bytes_streamed > 0:
+                            client_metrics.append(f'dispatcharr_client_bytes_sent{{{base_labels_str}}} {bytes_streamed}')
+
+                        avg_rate_bps = (conn.get('avg_bitrate_kbps') or 0) * 1000
+                        if avg_rate_bps > 0:
+                            client_metrics.append(f'dispatcharr_client_avg_transfer_rate_bps{{{base_labels_str}}} {avg_rate_bps:.2f}')
+                            client_metrics.append(f'dispatcharr_client_current_transfer_rate_bps{{{base_labels_str}}} {avg_rate_bps:.2f}')
+
+            except ImportError:
+                pass  # Older Dispatcharr builds without the timeshift app
+            except Exception as e:
+                logger.debug(f"Error collecting timeshift clients: {e}")
+
             metrics.append(f"dispatcharr_active_clients {total_clients}")
             metrics.extend(client_metrics)
 
@@ -1311,11 +1382,16 @@ class PrometheusMetricsCollector:
         return metrics
 
     def _collect_timeshift_metrics(self) -> list:
-        """Collect catch-up (timeshift) session and per-client metrics.
+        """Collect catch-up (timeshift) session-level metrics.
 
-        Reuses Dispatcharr's own ``build_timeshift_stats_data`` aggregator
-        (same one that powers the admin catch-up stats UI) instead of
-        reimplementing the Redis scan. Older Dispatcharr builds without the
+        Per-client connection detail is folded into the existing
+        ``dispatcharr_client_*`` metrics (type="timeshift") in
+        ``_collect_client_metrics``, matching how VOD clients are already
+        handled. This method only covers session-level facts that have no
+        live/VOD analog (paused state, stream metadata, connection count per
+        session). Reuses Dispatcharr's own ``build_timeshift_stats_data``
+        aggregator (same one that powers the admin catch-up stats UI) instead
+        of reimplementing the Redis scan. Older Dispatcharr builds without the
         timeshift app degrade to an empty metric list.
         """
         try:
@@ -1340,14 +1416,6 @@ class PrometheusMetricsCollector:
             metrics.append("# TYPE dispatcharr_timeshift_session_info gauge")
             metrics.append("# HELP dispatcharr_timeshift_session_connection_count Number of client connections attached to this catch-up session")
             metrics.append("# TYPE dispatcharr_timeshift_session_connection_count gauge")
-            metrics.append("# HELP dispatcharr_timeshift_client_info Catch-up client connection metadata")
-            metrics.append("# TYPE dispatcharr_timeshift_client_info gauge")
-            metrics.append("# HELP dispatcharr_timeshift_client_duration_seconds Duration of the catch-up client connection in seconds")
-            metrics.append("# TYPE dispatcharr_timeshift_client_duration_seconds gauge")
-            metrics.append("# HELP dispatcharr_timeshift_client_bytes_streamed Total bytes streamed to this catch-up client")
-            metrics.append("# TYPE dispatcharr_timeshift_client_bytes_streamed counter")
-            metrics.append("# HELP dispatcharr_timeshift_client_avg_bitrate_bps Average bitrate streamed to this catch-up client in bits per second")
-            metrics.append("# TYPE dispatcharr_timeshift_client_avg_bitrate_bps gauge")
 
             for session in sessions:
                 session_id = escape_label(session.get('session_id', ''))
@@ -1374,34 +1442,6 @@ class PrometheusMetricsCollector:
                     f'channel_name="{channel_name}"'
                 )
                 metrics.append(f'dispatcharr_timeshift_session_connection_count{{{count_labels}}} {session.get("connection_count", 0)}')
-
-                for conn in session.get('connections', []):
-                    client_labels = (
-                        f'client_id="{escape_label(conn.get("client_id", ""))}",'
-                        f'session_id="{session_id}",'
-                        f'channel_id="{channel_id}",'
-                        f'ip_address="{escape_label(conn.get("ip_address", "unknown"))}",'
-                        f'user_agent="{escape_label(conn.get("user_agent", "unknown"))}",'
-                        f'user_id="{escape_label(conn.get("user_id", "0"))}",'
-                        f'username="{escape_label(conn.get("username", "unknown"))}",'
-                        f'm3u_profile_id="{conn.get("m3u_profile_id") or ""}"'
-                    )
-                    metrics.append(f'dispatcharr_timeshift_client_info{{{client_labels}}} 1')
-
-                    base_labels = (
-                        f'client_id="{escape_label(conn.get("client_id", ""))}",'
-                        f'session_id="{session_id}",'
-                        f'channel_id="{channel_id}"'
-                    )
-                    duration = conn.get('duration', 0)
-                    if duration:
-                        metrics.append(f'dispatcharr_timeshift_client_duration_seconds{{{base_labels}}} {duration}')
-                    bytes_streamed = conn.get('bytes_streamed', 0)
-                    if bytes_streamed:
-                        metrics.append(f'dispatcharr_timeshift_client_bytes_streamed{{{base_labels}}} {bytes_streamed}')
-                    avg_bitrate_bps = (conn.get('avg_bitrate_kbps') or 0) * 1000
-                    if avg_bitrate_bps:
-                        metrics.append(f'dispatcharr_timeshift_client_avg_bitrate_bps{{{base_labels}}} {avg_bitrate_bps}')
 
         except Exception as e:
             logger.error(f"Error collecting timeshift metrics: {e}")

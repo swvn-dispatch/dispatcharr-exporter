@@ -663,18 +663,23 @@ dispatcharr_active_clients 15
 **Type:** gauge  
 **Value:** Always 1  
 **Labels:**
+- `type` - Connection type: `"live"`, `"vod"`, or `"timeshift"` (catch-up)
 - `client_id` - Unique client connection ID
-- `channel_uuid` - Channel UUID
+- `channel_uuid` - Channel UUID (live) or session ID (VOD/timeshift)
 - `channel_number` - Channel number
 - `ip_address` - Client IP address
 - `user_agent` - Client user agent string
-- `worker_id` - Dispatcharr worker ID handling the connection
+- `worker_id` - Dispatcharr worker ID handling the connection (live/VOD only)
+- `channel_name` - Channel/content name (VOD/timeshift only)
+- `session_id` - Catch-up session ID (timeshift only)
+- `user_id`, `username` - Resolved Dispatcharr account (VOD/timeshift only)
 
-**Description:** Metadata for each connected client. Join with `dispatcharr_stream_metadata` on `channel_uuid` to get channel name.
+**Description:** Metadata for each connected client, across live channel playback, VOD, and catch-up (timeshift) sessions. Join with `dispatcharr_stream_metadata` on `channel_uuid` to get channel name for live clients.
 
 **Example:**
 ```
-dispatcharr_client_info{client_id="client_1735492847123_4567",channel_uuid="12572661-bc4b-4937-8501-665c8a4ca1e1",channel_number="1001.0",ip_address="192.168.1.100",user_agent="VLC/3.0.16 LibVLC/3.0.16",worker_id="worker_1"} 1
+dispatcharr_client_info{type="live",client_id="client_1735492847123_4567",channel_uuid="12572661-bc4b-4937-8501-665c8a4ca1e1",channel_number="1001.0",ip_address="192.168.1.100",user_agent="VLC/3.0.16 LibVLC/3.0.16",worker_id="worker_1"} 1
+dispatcharr_client_info{type="timeshift",client_id="xyz",channel_uuid="12572661-bc4b-4937-8501-665c8a4ca1e1",channel_number="1001.0",channel_name="ESPN",session_id="ab12",ip_address="10.0.0.5",user_agent="VLC/3.0",user_id="1",username="alice"} 1
 ```
 
 ### `dispatcharr_client_connection_duration_seconds`
@@ -1020,7 +1025,7 @@ dispatcharr_user_active_streams >= dispatcharr_user_stream_limit
 
 *Optional metrics - disabled by default via `include_client_stats` setting*
 
-These metrics expose catch-up (timeshift) session and per-client information, reusing the same admin catch-up stats aggregator Dispatcharr itself uses. Only present on Dispatcharr builds that include the timeshift app. Client-level metrics carry IP address/user-agent/username, so treat with the same sensitivity as [Client Connection Metrics](#client-connection-metrics).
+These metrics expose catch-up (timeshift) session-level information, reusing the same admin catch-up stats aggregator Dispatcharr itself uses. Only present on Dispatcharr builds that include the timeshift app. Per-client connection detail (IP address, user agent, bytes sent, transfer rate) is **not** duplicated here — it's folded into the existing [Client Connection Metrics](#client-connection-metrics) (`dispatcharr_client_info` and friends) with `type="timeshift"`, alongside `"live"` and `"vod"`.
 
 ### `dispatcharr_timeshift_sessions`
 **Type:** gauge  
@@ -1070,39 +1075,6 @@ dispatcharr_timeshift_session_info{session_id="ab12",channel_id="12",channel_uui
 ```
 dispatcharr_timeshift_session_connection_count{session_id="ab12",channel_id="12",channel_name="ESPN"} 1
 ```
-
-### `dispatcharr_timeshift_client_info`
-**Type:** gauge  
-**Value:** Always 1  
-**Labels:**
-- `client_id` - Client connection ID
-- `session_id` - Catch-up session ID
-- `channel_id` - Channel ID
-- `ip_address` - Client IP address
-- `user_agent` - Client user agent
-- `user_id` - Dispatcharr user ID
-- `username` - Username
-- `m3u_profile_id` - M3U profile ID used for the upstream connection
-
-**Example:**
-```
-dispatcharr_timeshift_client_info{client_id="xyz",session_id="ab12",channel_id="12",ip_address="10.0.0.5",user_agent="VLC/3.0",user_id="1",username="alice",m3u_profile_id="2"} 1
-```
-
-### `dispatcharr_timeshift_client_duration_seconds`
-**Type:** gauge  
-**Value:** Duration of the catch-up client connection in seconds  
-**Labels:** `client_id`, `session_id`, `channel_id`
-
-### `dispatcharr_timeshift_client_bytes_streamed`
-**Type:** counter  
-**Value:** Total bytes streamed to this catch-up client  
-**Labels:** `client_id`, `session_id`, `channel_id`
-
-### `dispatcharr_timeshift_client_avg_bitrate_bps`
-**Type:** gauge  
-**Value:** Average bitrate streamed to this catch-up client in bits per second  
-**Labels:** `client_id`, `session_id`, `channel_id`
 
 ---
 
