@@ -557,7 +557,8 @@ dispatcharr_stream_index >= dispatcharr_stream_available_streams - 1
 - `video_codec` - Video codec (empty string if unknown)
 - `resolution` - Video resolution (empty string if unknown)
 - `logo_url` - Logo URL (empty string if none) — populated for all three types
-- Live/VOD-specific: `provider`, `provider_type`, `profile_id`, `profile_name`, `stream_profile` (not populated for timeshift)
+- `provider`, `provider_type`, `profile_id`, `profile_name` - Active M3U provider/profile (live, VOD, and timeshift — for timeshift this reflects the first connection's upstream profile)
+- Live/VOD-specific: `stream_profile` (transcode profile; not available for timeshift)
 - Live-specific: `stream_id`, `stream_name`
 - VOD-specific: `content_uuid`, `content_type` (movie/episode)
 - Episode-specific: `season_number`, `episode_number`, `series_name`
@@ -582,15 +583,15 @@ dispatcharr_stream_metadata{type="vod",channel_uuid="vod_1771265648475_8156",cha
 
 **Example (Timeshift):**
 ```
-dispatcharr_stream_metadata{type="timeshift",channel_uuid="177_T72IALNSc6edl9XWKJYr8g",channel_number="101",channel_name="UK | TNT Sports 1",channel_group="Sports",real_channel_uuid="495bcfd9-af66-473e-8fe8-dc546ca10a66",session_id="T72IALNSc6edl9XWKJYr8g",state="active",logo_url="/api/channels/logos/1/cache/",video_codec="h264",resolution="1920x1080",audio_codec="aac",stream_type="MPEG-TS"} 1
+dispatcharr_stream_metadata{type="timeshift",channel_uuid="177_T72IALNSc6edl9XWKJYr8g",channel_number="101",channel_name="UK | TNT Sports 1",channel_group="Sports",real_channel_uuid="495bcfd9-af66-473e-8fe8-dc546ca10a66",session_id="T72IALNSc6edl9XWKJYr8g",state="active",logo_url="/api/channels/logos/1/cache/",video_codec="h264",resolution="1920x1080",audio_codec="aac",stream_type="MPEG-TS",provider="Provider A",provider_type="XC",profile_id="3",profile_name="Default"} 1
 ```
 
 #### `dispatcharr_stream_programming`
 **Type:** gauge  
 **Value:** Current program/content progress (0.0 to 1.0), or 0.0 if no current program  
 **Labels:**
-- `type` - Stream type: "live" or "vod"
-- `channel_uuid` - Channel UUID (or VOD session ID for VOD content)
+- `type` - Stream type: "live", "vod", or "timeshift"
+- `channel_uuid` - Channel UUID (real channel UUID for live, VOD session ID for VOD, per-session stats ID for timeshift)
 - `channel_number` - Channel number (or VOD session timestamp)
 - `previous_title` - Previous program title (empty string if none; not used for VOD)
 - `previous_subtitle` - Previous program subtitle/episode (empty string if none; not used for VOD)
@@ -601,6 +602,7 @@ dispatcharr_stream_metadata{type="timeshift",channel_uuid="177_T72IALNSc6edl9XWK
   - **Live TV**: EPG program title
   - **VOD Movies**: Movie name
   - **VOD Episodes**: Series name
+  - **Timeshift**: EPG program title, prefixed `"Catchup-MM-DD-HH:MM: "` where the timestamp is the catch-up position being watched, e.g. `"Catchup-07-18-14:30: The Evening News"`
 - `current_subtitle` - Current program subtitle/episode (empty string if none)
   - **Live TV**: EPG episode/subtitle
   - **VOD Movies**: "Year - Genre" (e.g., "1999 - Action, Sci-Fi")
@@ -623,12 +625,18 @@ dispatcharr_stream_metadata{type="timeshift",channel_uuid="177_T72IALNSc6edl9XWK
 **Description:** 
 - **Live TV**: EPG program schedule information for the active stream. Only present if channel has EPG data assigned. The metric value represents how far into the current program we are (0.0 = just started, 1.0 = about to end). Labels provide previous, current, and next program information.
 - **VOD**: Rich content metadata including title, description, year, genre, rating, and viewing progress. The metric value represents how far into the content the viewer is (based on elapsed time vs. duration).
+- **Timeshift**: Same EPG schedule lookup as live TV, but anchored to the catch-up position being watched (the timestamp requested in the catch-up URL) rather than real time — so it reflects what's playing in the recording, not what's live on the channel right now. Requires the channel to have EPG data assigned. The current program's title is prefixed to make it visually obvious this is a catch-up view, not live.
 
 > **Note for Live TV:** This metric only works with actual EPG data. Channels using placeholder or dummy EPG sources will not have this metric.
 
 **Example (Live TV with EPG):**
 ```
 dispatcharr_stream_programming{type="live",channel_uuid="12572661-bc4b-4937-8501-665c8a4ca1e1",channel_number="1001.0",previous_title="Afternoon News",previous_subtitle="",previous_description="Local and national news coverage",previous_start_time="2026-01-02T17:00:00+00:00",previous_end_time="2026-01-02T18:00:00+00:00",current_title="The Evening News",current_subtitle="Special Report",current_description="Breaking news and analysis",current_start_time="2026-01-02T18:00:00+00:00",current_end_time="2026-01-02T19:00:00+00:00",next_title="Prime Time Drama",next_subtitle="Season 3 Episode 5",next_description="An exciting episode",next_start_time="2026-01-02T19:00:00+00:00",next_end_time="2026-01-02T20:00:00+00:00"} 0.5833
+```
+
+**Example (Timeshift with EPG):**
+```
+dispatcharr_stream_programming{type="timeshift",channel_uuid="177_T72IALNSc6edl9XWKJYr8g",channel_number="101",previous_title="Afternoon News",previous_subtitle="",previous_description="Local and national news coverage",previous_start_time="2026-07-18T17:00:00+00:00",previous_end_time="2026-07-18T18:00:00+00:00",current_title="Catchup-07-18-14:30: The Evening News",current_subtitle="Special Report",current_description="Breaking news and analysis",current_start_time="2026-07-18T18:00:00+00:00",current_end_time="2026-07-18T19:00:00+00:00",next_title="Prime Time Drama",next_subtitle="Season 3 Episode 5",next_description="An exciting episode",next_start_time="2026-07-18T19:00:00+00:00",next_end_time="2026-07-18T20:00:00+00:00"} 0.5833
 ```
 
 **Example (VOD Movie):**

@@ -420,7 +420,7 @@ class PrometheusMetricsCollector:
         metrics.append("# TYPE dispatcharr_stream_available_streams gauge")
         metrics.append("# HELP dispatcharr_stream_metadata Stream metadata (type: live/vod/timeshift, state values: active, paused, waiting_for_clients, buffering, stopping, error, unknown)")
         metrics.append("# TYPE dispatcharr_stream_metadata gauge")
-        metrics.append("# HELP dispatcharr_stream_programming Current EPG program information for active streams (live only)")
+        metrics.append("# HELP dispatcharr_stream_programming Current EPG program information for active streams (live and timeshift; timeshift current_title is prefixed \"Catchup-MM-DD-HH:MM: \")")
         metrics.append("# TYPE dispatcharr_stream_programming gauge")
         metrics.append("# HELP dispatcharr_stream_uptime_seconds Stream uptime in seconds since stream started")
         metrics.append("# TYPE dispatcharr_stream_uptime_seconds counter")
@@ -1065,8 +1065,44 @@ class PrometheusMetricsCollector:
 
                             connections = session.get('connections', [])
 
+                            # ── Active provider/profile (from the first connection's
+                            # upstream M3U profile, same as live's single-active-stream model) ──
+                            provider = "Unknown"
+                            provider_type = "Unknown"
+                            profile_id = None
+                            profile_name = "Unknown"
+                            profile_connections_count = 0
+                            profile_max = 0
+
+                            if connections:
+                                m3u_profile_id = connections[0].get('m3u_profile_id')
+                                if m3u_profile_id:
+                                    try:
+                                        profile_id = int(m3u_profile_id)
+                                        active_profile = M3UAccountProfile.objects.select_related('m3u_account').get(id=profile_id)
+                                        profile_name = active_profile.name
+                                        if active_profile.m3u_account:
+                                            provider = active_profile.m3u_account.name
+                                            provider_type = active_profile.m3u_account.account_type
+                                        profile_max = active_profile.max_streams
+                                        if self.redis_client:
+                                            profile_connections_count = int(self.redis_client.get(f"profile_connections:{profile_id}") or 0)
+                                    except Exception as e:
+                                        logger.debug(f"Error getting timeshift M3U profile {m3u_profile_id}: {e}")
+
+                            metadata_labels += [
+                                f'provider="{escape_label(provider)}"',
+                                f'provider_type="{escape_label(provider_type)}"',
+                                f'profile_id="{profile_id if profile_id else "none"}"',
+                                f'profile_name="{escape_label(profile_name)}"',
+                            ]
+
                             stream_value_metrics.append(f'dispatcharr_stream_channel_number{{{base_labels_str}}} {channel_number_value}')
                             stream_value_metrics.append(f'dispatcharr_stream_active_clients{{{base_labels_str}}} {session.get("connection_count", len(connections))}')
+
+                            if profile_id:
+                                stream_value_metrics.append(f'dispatcharr_stream_profile_connections{{{base_labels_str}}} {profile_connections_count}')
+                                stream_value_metrics.append(f'dispatcharr_stream_profile_max_connections{{{base_labels_str}}} {profile_max}')
 
                             if connections:
                                 connected_ats = [c.get('connected_at') for c in connections if c.get('connected_at')]
@@ -1079,6 +1115,68 @@ class PrometheusMetricsCollector:
                                     stream_value_metrics.append(f'dispatcharr_stream_avg_bitrate_bps{{{base_labels_str}}} {avg_bitrate_bps}')
 
                             stream_value_metrics.append(f'dispatcharr_stream_metadata{{{",".join(metadata_labels)}}} 1')
+
+                            # ── EPG programming, anchored to the requested catch-up
+                            # position (not real time) ──────────────────────────
+                            programme_start_raw = session.get('programme_start')
+                            if programme_start_raw and channel and getattr(channel, 'epg_data', None):
+                                try:
+                                    from apps.timeshift.helpers import parse_catchup_timestamp
+                                    from apps.epg.models import ProgramData
+                                    from datetime import timezone as dt_timezone
+
+                                    anchor_naive = parse_catchup_timestamp(programme_start_raw)
+                                    if anchor_naive:
+                                        anchor_dt = anchor_naive.replace(tzinfo=dt_timezone.utc)
+                                        anchor_str = anchor_dt.strftime('%m-%d-%H:%M')
+
+                                        current_program = ProgramData.objects.filter(
+                                            epg=channel.epg_data,
+                                            start_time__lte=anchor_dt,
+                                            end_time__gte=anchor_dt,
+                                        ).first()
+                                        previous_program = ProgramData.objects.filter(
+                                            epg=channel.epg_data,
+                                            end_time__lt=anchor_dt,
+                                        ).order_by('-end_time').first()
+                                        next_program = ProgramData.objects.filter(
+                                            epg=channel.epg_data,
+                                            start_time__gt=anchor_dt,
+                                        ).order_by('start_time').first()
+
+                                        def _format_ts_program(program, prefix, title_prefix=""):
+                                            if not program:
+                                                return [
+                                                    f'{prefix}_title=""',
+                                                    f'{prefix}_subtitle=""',
+                                                    f'{prefix}_description=""',
+                                                    f'{prefix}_start_time=""',
+                                                    f'{prefix}_end_time=""',
+                                                ]
+                                            title = f"{title_prefix}{program.title}" if title_prefix else program.title
+                                            return [
+                                                f'{prefix}_title="{escape_label(title)}"',
+                                                f'{prefix}_subtitle="{escape_label(program.sub_title)}"',
+                                                f'{prefix}_description="{escape_label(program.description)}"',
+                                                f'{prefix}_start_time="{program.start_time.isoformat()}"',
+                                                f'{prefix}_end_time="{program.end_time.isoformat()}"',
+                                            ]
+
+                                        if previous_program or current_program or next_program:
+                                            epg_labels = base_labels.copy()
+                                            epg_labels.extend(_format_ts_program(previous_program, 'previous'))
+                                            epg_labels.extend(_format_ts_program(current_program, 'current', title_prefix=f"Catchup-{anchor_str}: "))
+                                            epg_labels.extend(_format_ts_program(next_program, 'next'))
+
+                                            progress = 0.0
+                                            if current_program:
+                                                total_duration = (current_program.end_time - current_program.start_time).total_seconds()
+                                                elapsed = (anchor_dt - current_program.start_time).total_seconds()
+                                                progress = min(1.0, max(0.0, elapsed / total_duration)) if total_duration > 0 else 0.0
+
+                                            stream_value_metrics.append(f'dispatcharr_stream_programming{{{",".join(epg_labels)}}} {progress:.4f}')
+                                except Exception as e:
+                                    logger.debug(f"Error fetching EPG program for timeshift channel {channel_id}: {e}")
 
                         except Exception as e:
                             logger.debug(f"Error processing timeshift session {session.get('session_id')}: {e}")
