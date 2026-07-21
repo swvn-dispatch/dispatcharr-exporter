@@ -1,1507 +1,2117 @@
 {
-  "__inputs": [
-    {
-      "name": "DS_MONITORING_- PROMETHEUS",
-      "label": "MONITORING - Prometheus",
-      "description": "",
-      "type": "datasource",
-      "pluginId": "prometheus",
-      "pluginName": "Prometheus"
-    }
-  ],
-  "__elements": {},
-  "__requires": [
-    {
-      "type": "panel",
-      "id": "bargauge",
-      "name": "Bar gauge",
-      "version": ""
-    },
-    {
-      "type": "grafana",
-      "id": "grafana",
-      "name": "Grafana",
-      "version": "12.3.3"
-    },
-    {
-      "type": "datasource",
-      "id": "prometheus",
-      "name": "Prometheus",
-      "version": "1.0.0"
-    },
-    {
-      "type": "panel",
-      "id": "stat",
-      "name": "Stat",
-      "version": ""
-    },
-    {
-      "type": "panel",
-      "id": "table",
-      "name": "Table",
-      "version": ""
-    }
-  ],
-  "annotations": {
-    "list": [
-      {
-        "builtIn": 1,
-        "datasource": {
-          "type": "grafana",
-          "uid": "-- Grafana --"
-        },
-        "enable": true,
-        "hide": true,
-        "iconColor": "rgba(0, 211, 255, 1)",
-        "name": "Annotations & Alerts",
-        "type": "dashboard"
-      }
-    ]
+  "apiVersion": "dashboard.grafana.app/v2",
+  "kind": "Dashboard",
+  "metadata": {
+    "name": "aa842463-afa6-45fb-b63c-1649aa62ebe9",
+    "generation": 36,
+    "creationTimestamp": "2026-01-07T16:29:58Z",
+    "labels": {},
+    "annotations": {}
   },
-  "editable": true,
-  "fiscalYearStartMonth": 0,
-  "graphTooltip": 1,
-  "links": [],
-  "panels": [
-    {
-      "collapsed": false,
-      "gridPos": {
-        "h": 1,
-        "w": 24,
-        "x": 0,
-        "y": 0
-      },
-      "id": 9,
-      "panels": [],
-      "title": "Instance Info",
-      "type": "row"
-    },
-    {
-      "datasource": {
-        "type": "prometheus",
-        "uid": "${DS_MONITORING_- PROMETHEUS}"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "fixedColor": "#14917e",
-            "mode": "fixed"
+  "spec": {
+    "annotations": [
+      {
+        "kind": "AnnotationQuery",
+        "spec": {
+          "query": {
+            "kind": "DataQuery",
+            "group": "grafana",
+            "version": "v0",
+            "spec": {},
+            "labels": {
+              "grafana.app/export-label": "grafana-1"
+            }
           },
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": 0
-              },
-              {
-                "color": "red",
-                "value": 80
-              }
-            ]
-          }
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 4,
-        "w": 12,
-        "x": 0,
-        "y": 1
-      },
-      "id": 7,
-      "options": {
-        "colorMode": "background",
-        "graphMode": "none",
-        "justifyMode": "center",
-        "orientation": "vertical",
-        "percentChangeColorMode": "standard",
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": "/^Dispatcharr Version$/",
-          "values": false
-        },
-        "showPercentChange": false,
-        "textMode": "value_and_name",
-        "wideLayout": false
-      },
-      "pluginVersion": "12.3.3",
-      "targets": [
-        {
-          "disableTextWrap": false,
-          "editorMode": "builder",
-          "exemplar": false,
-          "expr": "dispatcharr_info",
-          "fullMetaSearch": false,
-          "includeNullMetadata": true,
-          "instant": true,
-          "legendFormat": "__auto",
-          "range": false,
-          "refId": "A",
-          "useBackend": false,
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${DS_MONITORING_- PROMETHEUS}"
-          }
+          "enable": true,
+          "hide": true,
+          "iconColor": "rgba(0, 211, 255, 1)",
+          "name": "Annotations & Alerts",
+          "builtIn": true
         }
-      ],
-      "transformations": [
-        {
-          "id": "labelsToFields",
-          "options": {
-            "keepLabels": [
-              "version"
-            ],
-            "mode": "columns"
-          }
-        },
-        {
-          "id": "renameByRegex",
-          "options": {
-            "regex": "version",
-            "renamePattern": "Dispatcharr Version"
-          }
-        }
-      ],
-      "type": "stat"
-    },
-    {
-      "datasource": {
-        "type": "prometheus",
-        "uid": "${DS_MONITORING_- PROMETHEUS}"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "fixedColor": "#14917e",
-            "mode": "fixed"
-          },
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": 0
-              },
-              {
-                "color": "red",
-                "value": 80
-              }
-            ]
-          }
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 4,
-        "w": 12,
-        "x": 12,
-        "y": 1
-      },
-      "id": 8,
-      "options": {
-        "colorMode": "none",
-        "graphMode": "none",
-        "justifyMode": "center",
-        "orientation": "vertical",
-        "percentChangeColorMode": "standard",
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": "/^Exporter Version$/",
-          "values": false
-        },
-        "showPercentChange": false,
-        "textMode": "value_and_name",
-        "wideLayout": false
-      },
-      "pluginVersion": "12.3.3",
-      "targets": [
-        {
-          "disableTextWrap": false,
-          "editorMode": "code",
-          "exemplar": false,
-          "expr": "dispatcharr_exporter_info",
-          "fullMetaSearch": false,
-          "includeNullMetadata": true,
-          "instant": true,
-          "legendFormat": "__auto",
-          "range": false,
-          "refId": "A",
-          "useBackend": false,
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${DS_MONITORING_- PROMETHEUS}"
-          }
-        }
-      ],
-      "transformations": [
-        {
-          "id": "labelsToFields",
-          "options": {
-            "keepLabels": [
-              "version"
-            ],
-            "mode": "columns"
-          }
-        },
-        {
-          "id": "renameByRegex",
-          "options": {
-            "regex": "version",
-            "renamePattern": "Exporter Version"
-          }
-        }
-      ],
-      "type": "stat"
-    },
-    {
-      "collapsed": false,
-      "gridPos": {
-        "h": 1,
-        "w": 24,
-        "x": 0,
-        "y": 5
-      },
-      "id": 6,
-      "panels": [],
-      "title": "Active Sessions",
-      "type": "row"
-    },
-    {
-      "datasource": {
-        "type": "prometheus",
-        "uid": "${DS_MONITORING_- PROMETHEUS}"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "custom": {
-            "align": "center",
-            "cellOptions": {
-              "type": "auto"
-            },
-            "filterable": false,
-            "footer": {
-              "reducers": []
-            },
-            "inspect": false,
-            "minWidth": 50,
-            "wrapHeaderText": false,
-            "wrapText": false
-          },
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": 0
-              },
-              {
-                "color": "red",
-                "value": 80
-              }
-            ]
-          }
-        },
-        "overrides": [
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "Channel"
-            },
-            "properties": [
-              {
-                "id": "custom.width",
-                "value": 150
-              },
-              {
-                "id": "decimals",
-                "value": 0
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "Logo"
-            },
-            "properties": [
-              {
-                "id": "custom.cellOptions",
-                "value": {
-                  "type": "image"
-                }
-              },
-              {
-                "id": "custom.width",
-                "value": 200
-              },
-              {
-                "id": "custom.align",
-                "value": "center"
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "Uptime"
-            },
-            "properties": [
-              {
-                "id": "unit",
-                "value": "s"
-              },
-              {
-                "id": "decimals",
-                "value": 0
-              },
-              {
-                "id": "custom.width",
-                "value": 100
-              },
-              {
-                "id": "custom.filterable",
-                "value": false
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "state"
-            },
-            "properties": [
-              {
-                "id": "custom.cellOptions",
-                "value": {
-                  "applyToRow": true,
-                  "type": "color-background"
-                }
-              },
-              {
-                "id": "custom.wrapText",
-                "value": false
-              },
-              {
-                "id": "custom.hideFrom.viz",
-                "value": true
-              },
-              {
-                "id": "mappings",
-                "value": [
+      }
+    ],
+    "cursorSync": "Crosshair",
+    "editable": true,
+    "elements": {
+      "panel-1": {
+        "kind": "Panel",
+        "spec": {
+          "title": "Streams",
+          "description": "",
+          "vizConfig": {
+            "kind": "VizConfig",
+            "group": "table",
+            "version": "12.4.0",
+            "spec": {
+              "fieldConfig": {
+                "defaults": {
+                  "custom": {
+                    "align": "center",
+                    "cellOptions": {
+                      "type": "auto"
+                    },
+                    "filterable": false,
+                    "footer": {
+                      "reducers": []
+                    },
+                    "inspect": false,
+                    "minWidth": 50,
+                    "wrapHeaderText": false,
+                    "wrapText": false
+                  },
+                  "thresholds": {
+                    "mode": "absolute",
+                    "steps": [
+                      {
+                        "color": "green",
+                        "value": null
+                      },
+                      {
+                        "color": "red",
+                        "value": 80
+                      }
+                    ]
+                  }
+                },
+                "overrides": [
                   {
-                    "options": {
-                      "active": {
-                        "color": "#55a64b80",
-                        "index": 0
+                    "matcher": {
+                      "id": "byName",
+                      "options": "Channel"
+                    },
+                    "properties": [
+                      {
+                        "id": "custom.width",
+                        "value": 150
                       },
-                      "buffering": {
-                        "color": "#ff780a80",
-                        "index": 1
+                      {
+                        "id": "decimals",
+                        "value": 0
+                      }
+                    ]
+                  },
+                  {
+                    "matcher": {
+                      "id": "byName",
+                      "options": "Logo"
+                    },
+                    "properties": [
+                      {
+                        "id": "custom.cellOptions",
+                        "value": {
+                          "type": "image"
+                        }
                       },
-                      "error": {
-                        "color": "#e02f4480",
-                        "index": 3
+                      {
+                        "id": "custom.width",
+                        "value": 200
                       },
-                      "waiting_for_clients": {
-                        "color": "#1f61c480",
-                        "index": 2
+                      {
+                        "id": "custom.align",
+                        "value": "center"
+                      }
+                    ]
+                  },
+                  {
+                    "matcher": {
+                      "id": "byName",
+                      "options": "Uptime"
+                    },
+                    "properties": [
+                      {
+                        "id": "unit",
+                        "value": "s"
+                      },
+                      {
+                        "id": "decimals",
+                        "value": 0
+                      },
+                      {
+                        "id": "custom.width",
+                        "value": 100
+                      },
+                      {
+                        "id": "custom.filterable",
+                        "value": false
+                      }
+                    ]
+                  },
+                  {
+                    "matcher": {
+                      "id": "byName",
+                      "options": "state"
+                    },
+                    "properties": [
+                      {
+                        "id": "custom.cellOptions",
+                        "value": {
+                          "applyToRow": true,
+                          "type": "color-background"
+                        }
+                      },
+                      {
+                        "id": "custom.wrapText",
+                        "value": false
+                      },
+                      {
+                        "id": "custom.hideFrom.viz",
+                        "value": true
+                      },
+                      {
+                        "id": "mappings",
+                        "value": [
+                          {
+                            "options": {
+                              "active": {
+                                "color": "#55a64b80",
+                                "index": 0
+                              },
+                              "buffering": {
+                                "color": "#ff780a80",
+                                "index": 1
+                              },
+                              "error": {
+                                "color": "#e02f4480",
+                                "index": 3
+                              },
+                              "waiting_for_clients": {
+                                "color": "#1f61c480",
+                                "index": 2
+                              }
+                            },
+                            "type": "value"
+                          }
+                        ]
+                      },
+                      {
+                        "id": "color",
+                        "value": {
+                          "mode": "palette-classic-by-name"
+                        }
+                      }
+                    ]
+                  },
+                  {
+                    "matcher": {
+                      "id": "byValue",
+                      "options": {
+                        "op": "neq",
+                        "reducer": "allValues",
+                        "value": 99999999
                       }
                     },
-                    "type": "value"
+                    "properties": [
+                      {
+                        "id": "custom.filterable"
+                      },
+                      {
+                        "id": "filterable"
+                      }
+                    ]
+                  },
+                  {
+                    "matcher": {
+                      "id": "byName",
+                      "options": "Provider"
+                    },
+                    "properties": [
+                      {
+                        "id": "custom.width",
+                        "value": 175
+                      },
+                      {
+                        "id": "mappings",
+                        "value": [
+                          {
+                            "options": {
+                              "pattern": ".*[Cc]ustom.*",
+                              "result": {
+                                "index": 0,
+                                "text": "Custom"
+                              }
+                            },
+                            "type": "regex"
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "matcher": {
+                      "id": "byName",
+                      "options": "Profile"
+                    },
+                    "properties": [
+                      {
+                        "id": "custom.width",
+                        "value": 100
+                      }
+                    ]
+                  },
+                  {
+                    "matcher": {
+                      "id": "byName",
+                      "options": "Resolution"
+                    },
+                    "properties": [
+                      {
+                        "id": "custom.width",
+                        "value": 100
+                      }
+                    ]
+                  },
+                  {
+                    "matcher": {
+                      "id": "byName",
+                      "options": "Progress"
+                    },
+                    "properties": [
+                      {
+                        "id": "custom.cellOptions",
+                        "value": {
+                          "mode": "basic",
+                          "type": "gauge",
+                          "valueDisplayMode": "hidden"
+                        }
+                      },
+                      {
+                        "id": "unit",
+                        "value": "percentunit"
+                      },
+                      {
+                        "id": "decimals",
+                        "value": 0
+                      },
+                      {
+                        "id": "min",
+                        "value": 0
+                      },
+                      {
+                        "id": "max",
+                        "value": 1
+                      },
+                      {
+                        "id": "color",
+                        "value": {
+                          "fixedColor": "text",
+                          "mode": "fixed"
+                        }
+                      },
+                      {
+                        "id": "custom.width",
+                        "value": 75
+                      }
+                    ]
+                  },
+                  {
+                    "matcher": {
+                      "id": "byName",
+                      "options": "Program"
+                    },
+                    "properties": [
+                      {
+                        "id": "custom.align",
+                        "value": "center"
+                      },
+                      {
+                        "id": "custom.minWidth",
+                        "value": 200
+                      }
+                    ]
+                  },
+                  {
+                    "matcher": {
+                      "id": "byName",
+                      "options": "Type"
+                    },
+                    "properties": [
+                      {
+                        "id": "custom.width",
+                        "value": 100
+                      }
+                    ]
+                  },
+                  {
+                    "matcher": {
+                      "id": "byName",
+                      "options": "Speed"
+                    },
+                    "properties": [
+                      {
+                        "id": "custom.width",
+                        "value": 75
+                      },
+                      {
+                        "id": "custom.cellOptions",
+                        "value": {
+                          "mode": "gradient",
+                          "type": "color-background"
+                        }
+                      },
+                      {
+                        "id": "min",
+                        "value": 0
+                      },
+                      {
+                        "id": "fieldMinMax",
+                        "value": false
+                      },
+                      {
+                        "id": "max",
+                        "value": 2
+                      },
+                      {
+                        "id": "color",
+                        "value": {
+                          "mode": "continuous-RdYlGr"
+                        }
+                      },
+                      {
+                        "id": "unit",
+                        "value": "percentunit"
+                      },
+                      {
+                        "id": "mappings",
+                        "value": [
+                          {
+                            "options": {
+                              "match": "null+nan",
+                              "result": {
+                                "color": "transparent",
+                                "index": 0,
+                                "text": "Direct"
+                              }
+                            },
+                            "type": "special"
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "matcher": {
+                      "id": "byName",
+                      "options": "Name"
+                    },
+                    "properties": [
+                      {
+                        "id": "custom.minWidth",
+                        "value": 100
+                      }
+                    ]
                   }
                 ]
               },
-              {
-                "id": "color",
-                "value": {
-                  "mode": "palette-classic-by-name"
-                }
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byValue",
               "options": {
-                "op": "neq",
-                "reducer": "allValues",
-                "value": 99999999
+                "cellHeight": "lg",
+                "enablePagination": false,
+                "showHeader": false,
+                "sortBy": []
               }
-            },
-            "properties": [
-              {
-                "id": "custom.filterable"
-              },
-              {
-                "id": "filterable"
-              }
-            ]
+            }
           },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "Provider"
-            },
-            "properties": [
-              {
-                "id": "custom.width",
-                "value": 175
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "Profile"
-            },
-            "properties": [
-              {
-                "id": "custom.width",
-                "value": 100
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "Resolution"
-            },
-            "properties": [
-              {
-                "id": "custom.width",
-                "value": 100
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "Progress"
-            },
-            "properties": [
-              {
-                "id": "custom.cellOptions",
-                "value": {
-                  "mode": "basic",
-                  "type": "gauge",
-                  "valueDisplayMode": "hidden"
+          "links": [],
+          "id": 1,
+          "data": {
+            "kind": "QueryGroup",
+            "spec": {
+              "queries": [
+                {
+                  "kind": "PanelQuery",
+                  "spec": {
+                    "refId": "A",
+                    "hidden": false,
+                    "query": {
+                      "kind": "DataQuery",
+                      "version": "v0",
+                      "group": "prometheus",
+                      "spec": {
+                        "editorMode": "code",
+                        "exemplar": false,
+                        "expr": "label_join(\n  dispatcharr_stream_uptime_seconds\n  * on(channel_uuid, channel_number) group_left(channel_name, logo_url, state, provider, profile_name, resolution)\n      dispatcharr_stream_metadata,\n  \"provider_full\",\n  \" \",\n  \"provider\",\n  \"profile_name\"\n)",
+                        "format": "table",
+                        "instant": true,
+                        "range": false
+                      },
+                      "labels": {
+                        "grafana.app/export-label": "prometheus-1"
+                      }
+                    }
+                  }
+                },
+                {
+                  "kind": "PanelQuery",
+                  "spec": {
+                    "refId": "B",
+                    "hidden": false,
+                    "query": {
+                      "kind": "DataQuery",
+                      "version": "v0",
+                      "group": "prometheus",
+                      "spec": {
+                        "editorMode": "code",
+                        "exemplar": false,
+                        "expr": "label_join(\n  dispatcharr_stream_programming{current_subtitle!=\"\"}\n  * on(channel_uuid, channel_number) group_left(channel_name, logo_url, state, provider, profile_name, resolution)\n      dispatcharr_stream_metadata,\n  \"program_title_full\",\n  \" - \",\n  \"current_title\",\n  \"current_subtitle\"\n)\nor\nlabel_join(\n  dispatcharr_stream_programming{current_subtitle=\"\"}\n  * on(channel_uuid, channel_number) group_left(channel_name, logo_url, state, provider, profile_name, resolution)\n      dispatcharr_stream_metadata,\n  \"program_title_full\",\n  \"\",\n  \"current_title\"\n)",
+                        "format": "table",
+                        "instant": true,
+                        "range": false
+                      },
+                      "labels": {
+                        "grafana.app/export-label": "prometheus-1"
+                      }
+                    }
+                  }
+                },
+                {
+                  "kind": "PanelQuery",
+                  "spec": {
+                    "refId": "C",
+                    "hidden": false,
+                    "query": {
+                      "kind": "DataQuery",
+                      "version": "v0",
+                      "group": "prometheus",
+                      "spec": {
+                        "editorMode": "code",
+                        "exemplar": false,
+                        "expr": "dispatcharr_stream_buffering_speed\n* on(channel_uuid, channel_number) group_left(channel_name, logo_url, state, provider, profile_name, resolution)\n    dispatcharr_stream_metadata",
+                        "instant": true,
+                        "legendFormat": "__auto",
+                        "range": false
+                      },
+                      "labels": {
+                        "grafana.app/export-label": "prometheus-1"
+                      }
+                    }
+                  }
                 }
-              },
-              {
-                "id": "unit",
-                "value": "percentunit"
-              },
-              {
-                "id": "decimals",
-                "value": 0
-              },
-              {
-                "id": "min",
-                "value": 0
-              },
-              {
-                "id": "max",
-                "value": 1
-              },
-              {
-                "id": "color",
-                "value": {
-                  "fixedColor": "text",
-                  "mode": "fixed"
+              ],
+              "transformations": [
+                {
+                  "kind": "Transformation",
+                  "group": "labelsToFields",
+                  "spec": {
+                    "options": {
+                      "mode": "columns"
+                    }
+                  }
+                },
+                {
+                  "kind": "Transformation",
+                  "group": "merge",
+                  "spec": {
+                    "options": {}
+                  }
+                },
+                {
+                  "kind": "Transformation",
+                  "group": "organize",
+                  "spec": {
+                    "options": {
+                      "excludeByName": {
+                        "Time": true,
+                        "Value": false,
+                        "Value #A": false,
+                        "Value #B": true,
+                        "__name__": true,
+                        "channel_group": true,
+                        "channel_name": false,
+                        "channel_uuid": true,
+                        "current_description": true,
+                        "current_end_time": true,
+                        "current_start_time": true,
+                        "current_subtitle": true,
+                        "current_title": true,
+                        "group": true,
+                        "instance": true,
+                        "job": true,
+                        "next_description": true,
+                        "next_end_time": true,
+                        "next_start_time": true,
+                        "next_subtitle": true,
+                        "next_title": true,
+                        "previous_description": true,
+                        "previous_end_time": true,
+                        "previous_start_time": true,
+                        "previous_subtitle": true,
+                        "previous_title": true,
+                        "process": true,
+                        "profile_id": true,
+                        "profile_name": true,
+                        "program_title_full": false,
+                        "provider": true,
+                        "provider_type": true,
+                        "resolution": true,
+                        "stream_id": true,
+                        "stream_name": true,
+                        "stream_profile": true,
+                        "type": true,
+                        "video_codec": true
+                      },
+                      "includeByName": {},
+                      "indexByName": {
+                        "Time": 10,
+                        "Value #A": 16,
+                        "Value #B": 5,
+                        "channel_name": 3,
+                        "channel_number": 0,
+                        "channel_uuid": 11,
+                        "current_description": 18,
+                        "current_end_time": 19,
+                        "current_start_time": 20,
+                        "current_subtitle": 21,
+                        "current_title": 22,
+                        "group": 12,
+                        "instance": 13,
+                        "job": 14,
+                        "logo_url": 1,
+                        "next_description": 23,
+                        "next_end_time": 24,
+                        "next_start_time": 25,
+                        "next_subtitle": 26,
+                        "next_title": 27,
+                        "previous_description": 28,
+                        "previous_end_time": 29,
+                        "previous_start_time": 30,
+                        "previous_subtitle": 31,
+                        "previous_title": 32,
+                        "process": 15,
+                        "profile_name": 7,
+                        "program_title_full": 4,
+                        "provider": 6,
+                        "provider_full": 8,
+                        "resolution": 17,
+                        "state": 9,
+                        "type": 2
+                      },
+                      "renameByName": {
+                        "Value": "Speed",
+                        "Value #A": "Uptime",
+                        "Value #B": "Progress",
+                        "channel_name": "Name",
+                        "channel_number": "Channel",
+                        "current_title": "Title",
+                        "logo_url": "Logo",
+                        "profile_name": "Profile",
+                        "program_title_full": "Program",
+                        "provider": "Provider",
+                        "provider_full": "Provider",
+                        "resolution": "Resolution",
+                        "type": "Type"
+                      }
+                    }
+                  }
+                },
+                {
+                  "kind": "Transformation",
+                  "group": "convertFieldType",
+                  "spec": {
+                    "options": {
+                      "conversions": [
+                        {
+                          "destinationType": "number",
+                          "targetField": "Channel"
+                        }
+                      ],
+                      "fields": {}
+                    }
+                  }
+                },
+                {
+                  "kind": "Transformation",
+                  "group": "sortBy",
+                  "spec": {
+                    "options": {
+                      "fields": {},
+                      "sort": [
+                        {
+                          "desc": true,
+                          "field": "Uptime"
+                        }
+                      ]
+                    }
+                  }
                 }
-              },
-              {
-                "id": "custom.width",
-                "value": 75
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "Program"
-            },
-            "properties": [
-              {
-                "id": "custom.align",
-                "value": "auto"
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "Type"
-            },
-            "properties": [
-              {
-                "id": "custom.width",
-                "value": 100
-              }
-            ]
-          }
-        ]
-      },
-      "gridPos": {
-        "h": 7,
-        "w": 24,
-        "x": 0,
-        "y": 6
-      },
-      "id": 1,
-      "options": {
-        "cellHeight": "lg",
-        "enablePagination": false,
-        "showHeader": false,
-        "sortBy": []
-      },
-      "pluginVersion": "12.3.3",
-      "targets": [
-        {
-          "editorMode": "code",
-          "exemplar": false,
-          "expr": "label_join(\n  dispatcharr_stream_uptime_seconds\n  * on(channel_uuid, channel_number) group_left(channel_name, logo_url, state, provider, profile_name, resolution)\n      dispatcharr_stream_metadata,\n  \"provider_full\",\n  \" \",\n  \"provider\",\n  \"profile_name\"\n)",
-          "format": "table",
-          "instant": true,
-          "range": false,
-          "refId": "A",
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${DS_MONITORING_- PROMETHEUS}"
-          }
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${DS_MONITORING_- PROMETHEUS}"
-          },
-          "editorMode": "code",
-          "exemplar": false,
-          "expr": "label_join(\n  dispatcharr_stream_programming{current_subtitle!=\"\"}\n  * on(channel_uuid, channel_number) group_left(channel_name, logo_url, state, provider, profile_name, resolution)\n      dispatcharr_stream_metadata,\n  \"program_title_full\",\n  \" - \",\n  \"current_title\",\n  \"current_subtitle\"\n)\nor\nlabel_join(\n  dispatcharr_stream_programming{current_subtitle=\"\"}\n  * on(channel_uuid, channel_number) group_left(channel_name, logo_url, state, provider, profile_name, resolution)\n      dispatcharr_stream_metadata,\n  \"program_title_full\",\n  \"\",\n  \"current_title\"\n)",
-          "format": "table",
-          "hide": false,
-          "instant": true,
-          "range": false,
-          "refId": "B"
-        }
-      ],
-      "title": "Streams",
-      "transformations": [
-        {
-          "id": "labelsToFields",
-          "options": {
-            "mode": "columns"
-          }
-        },
-        {
-          "id": "merge",
-          "options": {}
-        },
-        {
-          "id": "organize",
-          "options": {
-            "excludeByName": {
-              "Time": true,
-              "Value #A": false,
-              "Value #B": true,
-              "__name__": true,
-              "channel_group": true,
-              "channel_name": false,
-              "channel_uuid": true,
-              "current_description": true,
-              "current_end_time": true,
-              "current_start_time": true,
-              "current_subtitle": true,
-              "current_title": true,
-              "group": true,
-              "instance": true,
-              "job": true,
-              "next_description": true,
-              "next_end_time": true,
-              "next_start_time": true,
-              "next_subtitle": true,
-              "next_title": true,
-              "previous_description": true,
-              "previous_end_time": true,
-              "previous_start_time": true,
-              "previous_subtitle": true,
-              "previous_title": true,
-              "process": true,
-              "profile_id": true,
-              "profile_name": true,
-              "program_title_full": false,
-              "provider": true,
-              "provider_type": true,
-              "resolution": false,
-              "stream_id": true,
-              "stream_name": true,
-              "stream_profile": true,
-              "type": true,
-              "video_codec": true
-            },
-            "includeByName": {},
-            "indexByName": {
-              "Time": 10,
-              "Value #A": 16,
-              "Value #B": 5,
-              "channel_name": 3,
-              "channel_number": 0,
-              "channel_uuid": 11,
-              "current_description": 18,
-              "current_end_time": 19,
-              "current_start_time": 20,
-              "current_subtitle": 21,
-              "current_title": 22,
-              "group": 12,
-              "instance": 13,
-              "job": 14,
-              "logo_url": 1,
-              "next_description": 23,
-              "next_end_time": 24,
-              "next_start_time": 25,
-              "next_subtitle": 26,
-              "next_title": 27,
-              "previous_description": 28,
-              "previous_end_time": 29,
-              "previous_start_time": 30,
-              "previous_subtitle": 31,
-              "previous_title": 32,
-              "process": 15,
-              "profile_name": 7,
-              "program_title_full": 4,
-              "provider": 6,
-              "provider_full": 8,
-              "resolution": 17,
-              "state": 9,
-              "type": 2
-            },
-            "renameByName": {
-              "Value": "Uptime",
-              "Value #A": "Uptime",
-              "Value #B": "Progress",
-              "channel_name": "Name",
-              "channel_number": "Channel",
-              "current_title": "Title",
-              "logo_url": "Logo",
-              "profile_name": "Profile",
-              "program_title_full": "Program",
-              "provider": "Provider",
-              "provider_full": "Provider",
-              "resolution": "Resolution",
-              "type": "Type"
+              ],
+              "queryOptions": {}
             }
           }
-        },
-        {
-          "id": "convertFieldType",
-          "options": {
-            "conversions": [
-              {
-                "destinationType": "number",
-                "targetField": "Channel"
-              }
-            ],
-            "fields": {}
-          }
-        },
-        {
-          "id": "sortBy",
-          "options": {
-            "fields": {},
-            "sort": [
-              {
-                "desc": true,
-                "field": "Uptime"
-              }
-            ]
-          }
         }
-      ],
-      "type": "table"
-    },
-    {
-      "datasource": {
-        "type": "prometheus",
-        "uid": "${DS_MONITORING_- PROMETHEUS}"
       },
-      "fieldConfig": {
-        "defaults": {
-          "custom": {
-            "align": "center",
-            "cellOptions": {
-              "type": "auto"
-            },
-            "filterable": false,
-            "footer": {
-              "reducers": []
-            },
-            "inspect": false,
-            "wrapText": false
-          },
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": 0
-              },
-              {
-                "color": "red",
-                "value": 80
-              }
-            ]
-          }
-        },
-        "overrides": [
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "Channel"
-            },
-            "properties": [
-              {
-                "id": "decimals",
-                "value": 0
-              },
-              {
-                "id": "custom.minWidth",
-                "value": 50
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "Duration"
-            },
-            "properties": [
-              {
-                "id": "unit",
-                "value": "s"
-              },
-              {
-                "id": "decimals",
-                "value": 0
-              },
-              {
-                "id": "custom.filterable",
-                "value": false
-              },
-              {
-                "id": "custom.minWidth",
-                "value": 50
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "state"
-            },
-            "properties": [
-              {
-                "id": "custom.cellOptions",
-                "value": {
-                  "applyToRow": true,
-                  "type": "color-background"
-                }
-              },
-              {
-                "id": "custom.hideFrom.viz",
-                "value": true
-              },
-              {
-                "id": "mappings",
-                "value": [
+      "panel-104": {
+        "kind": "Panel",
+        "spec": {
+          "title": "Clients",
+          "description": "",
+          "vizConfig": {
+            "kind": "VizConfig",
+            "group": "table",
+            "version": "12.4.2",
+            "spec": {
+              "fieldConfig": {
+                "defaults": {
+                  "custom": {
+                    "align": "center",
+                    "cellOptions": {
+                      "type": "auto"
+                    },
+                    "filterable": false,
+                    "footer": {
+                      "reducers": []
+                    },
+                    "inspect": false,
+                    "wrapText": false
+                  },
+                  "thresholds": {
+                    "mode": "absolute",
+                    "steps": [
+                      {
+                        "color": "green",
+                        "value": null
+                      },
+                      {
+                        "color": "red",
+                        "value": 80
+                      }
+                    ]
+                  }
+                },
+                "overrides": [
                   {
-                    "options": {
-                      "active": {
-                        "color": "#55a64b52",
-                        "index": 0
+                    "matcher": {
+                      "id": "byName",
+                      "options": "Channel"
+                    },
+                    "properties": [
+                      {
+                        "id": "decimals",
+                        "value": 0
                       },
-                      "buffering": {
-                        "color": "#ff780a52",
-                        "index": 1
+                      {
+                        "id": "custom.minWidth",
+                        "value": 50
+                      }
+                    ]
+                  },
+                  {
+                    "matcher": {
+                      "id": "byName",
+                      "options": "Duration"
+                    },
+                    "properties": [
+                      {
+                        "id": "unit",
+                        "value": "s"
                       },
-                      "error": {
-                        "color": "#e02f4452",
-                        "index": 3
+                      {
+                        "id": "decimals",
+                        "value": 0
                       },
-                      "waiting_for_clients": {
-                        "color": "#1f61c452",
-                        "index": 2
+                      {
+                        "id": "custom.filterable",
+                        "value": false
+                      },
+                      {
+                        "id": "custom.minWidth",
+                        "value": 50
+                      }
+                    ]
+                  },
+                  {
+                    "matcher": {
+                      "id": "byName",
+                      "options": "state"
+                    },
+                    "properties": [
+                      {
+                        "id": "custom.cellOptions",
+                        "value": {
+                          "applyToRow": true,
+                          "type": "color-background"
+                        }
+                      },
+                      {
+                        "id": "custom.hideFrom.viz",
+                        "value": true
+                      },
+                      {
+                        "id": "mappings",
+                        "value": [
+                          {
+                            "options": {
+                              "active": {
+                                "color": "#55a64b52",
+                                "index": 0
+                              },
+                              "buffering": {
+                                "color": "#ff780a52",
+                                "index": 1
+                              },
+                              "error": {
+                                "color": "#e02f4452",
+                                "index": 3
+                              },
+                              "waiting_for_clients": {
+                                "color": "#1f61c452",
+                                "index": 2
+                              }
+                            },
+                            "type": "value"
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "matcher": {
+                      "id": "byValue",
+                      "options": {
+                        "op": "neq",
+                        "reducer": "allValues",
+                        "value": 99999999
                       }
                     },
-                    "type": "value"
+                    "properties": [
+                      {
+                        "id": "custom.filterable"
+                      },
+                      {
+                        "id": "filterable"
+                      }
+                    ]
+                  },
+                  {
+                    "matcher": {
+                      "id": "byName",
+                      "options": "Client"
+                    },
+                    "properties": [
+                      {
+                        "id": "custom.minWidth",
+                        "value": 50
+                      }
+                    ]
+                  },
+                  {
+                    "matcher": {
+                      "id": "byName",
+                      "options": "Sent"
+                    },
+                    "properties": [
+                      {
+                        "id": "unit",
+                        "value": "decbytes"
+                      },
+                      {
+                        "id": "custom.minWidth",
+                        "value": 50
+                      }
+                    ]
+                  },
+                  {
+                    "matcher": {
+                      "id": "byName",
+                      "options": "Rate"
+                    },
+                    "properties": [
+                      {
+                        "id": "unit",
+                        "value": "bps"
+                      },
+                      {
+                        "id": "custom.minWidth",
+                        "value": 50
+                      }
+                    ]
+                  }
+                ]
+              },
+              "options": {
+                "cellHeight": "sm",
+                "enablePagination": false,
+                "frameIndex": 1,
+                "showHeader": false,
+                "sortBy": []
+              }
+            }
+          },
+          "links": [],
+          "id": 104,
+          "data": {
+            "kind": "QueryGroup",
+            "spec": {
+              "queries": [
+                {
+                  "kind": "PanelQuery",
+                  "spec": {
+                    "refId": "A",
+                    "hidden": false,
+                    "query": {
+                      "kind": "DataQuery",
+                      "version": "v0",
+                      "group": "prometheus",
+                      "spec": {
+                        "editorMode": "code",
+                        "exemplar": false,
+                        "expr": "dispatcharr_client_connection_duration_seconds \n* on(client_id, channel_uuid) group_left(ip_address, username)\n  dispatcharr_client_info\n* on(channel_uuid) group_left(channel_name)\n  dispatcharr_stream_metadata",
+                        "format": "table",
+                        "instant": true,
+                        "legendFormat": "__auto",
+                        "range": false
+                      },
+                      "labels": {
+                        "grafana.app/export-label": "prometheus-1"
+                      }
+                    }
+                  }
+                },
+                {
+                  "kind": "PanelQuery",
+                  "spec": {
+                    "refId": "B",
+                    "hidden": false,
+                    "query": {
+                      "kind": "DataQuery",
+                      "version": "v0",
+                      "group": "prometheus",
+                      "spec": {
+                        "editorMode": "code",
+                        "exemplar": false,
+                        "expr": "dispatcharr_client_bytes_sent\n* on(client_id, channel_uuid) group_left(ip_address, username)\n  dispatcharr_client_info\n* on(channel_uuid) group_left(channel_name)\n  dispatcharr_stream_metadata",
+                        "format": "table",
+                        "instant": true,
+                        "legendFormat": "__auto",
+                        "range": false
+                      },
+                      "labels": {
+                        "grafana.app/export-label": "prometheus-1"
+                      }
+                    }
+                  }
+                },
+                {
+                  "kind": "PanelQuery",
+                  "spec": {
+                    "refId": "C",
+                    "hidden": false,
+                    "query": {
+                      "kind": "DataQuery",
+                      "version": "v0",
+                      "group": "prometheus",
+                      "spec": {
+                        "editorMode": "code",
+                        "exemplar": false,
+                        "expr": "dispatcharr_client_current_transfer_rate_bps\n* on(client_id, channel_uuid) group_left(ip_address, username)\n  dispatcharr_client_info\n* on(channel_uuid) group_left(channel_name)\n  dispatcharr_stream_metadata",
+                        "format": "table",
+                        "instant": true,
+                        "legendFormat": "__auto",
+                        "range": false
+                      },
+                      "labels": {
+                        "grafana.app/export-label": "prometheus-1"
+                      }
+                    }
+                  }
+                }
+              ],
+              "transformations": [
+                {
+                  "kind": "Transformation",
+                  "group": "labelsToFields",
+                  "spec": {
+                    "options": {
+                      "mode": "columns"
+                    }
+                  }
+                },
+                {
+                  "kind": "Transformation",
+                  "group": "merge",
+                  "spec": {
+                    "options": {}
+                  }
+                },
+                {
+                  "kind": "Transformation",
+                  "group": "organize",
+                  "spec": {
+                    "options": {
+                      "excludeByName": {
+                        "Time": true,
+                        "Value #A": false,
+                        "Value #B": true,
+                        "Value #C": false,
+                        "__name__": true,
+                        "channel_group": true,
+                        "channel_name": true,
+                        "channel_uuid": true,
+                        "client_id": true,
+                        "group": true,
+                        "instance": true,
+                        "ip_address": false,
+                        "job": true,
+                        "process": true,
+                        "profile_id": true,
+                        "profile_name": false,
+                        "provider": false,
+                        "provider_type": true,
+                        "resolution": true,
+                        "stream_id": true,
+                        "stream_name": true,
+                        "stream_profile": true,
+                        "type": true,
+                        "video_codec": true
+                      },
+                      "includeByName": {},
+                      "indexByName": {
+                        "Time": 5,
+                        "Value #A": 12,
+                        "Value #B": 13,
+                        "Value #C": 14,
+                        "channel_name": 4,
+                        "channel_number": 1,
+                        "channel_uuid": 6,
+                        "client_id": 0,
+                        "group": 7,
+                        "instance": 8,
+                        "ip_address": 3,
+                        "job": 9,
+                        "process": 10,
+                        "type": 11,
+                        "username": 2
+                      },
+                      "renameByName": {
+                        "Value": "Duration",
+                        "Value #A": "Duration",
+                        "Value #B": "Sent",
+                        "Value #C": "Rate",
+                        "channel_name": "Name",
+                        "channel_number": "Channel",
+                        "ip_address": "Client",
+                        "logo_url": "Logo",
+                        "profile_name": "Profile",
+                        "provider": "Provider",
+                        "type": "Type",
+                        "username": "User"
+                      }
+                    }
+                  }
+                },
+                {
+                  "kind": "Transformation",
+                  "group": "convertFieldType",
+                  "spec": {
+                    "options": {
+                      "conversions": [
+                        {
+                          "destinationType": "number",
+                          "targetField": "Channel"
+                        }
+                      ],
+                      "fields": {}
+                    }
+                  }
+                },
+                {
+                  "kind": "Transformation",
+                  "group": "sortBy",
+                  "spec": {
+                    "options": {
+                      "fields": {},
+                      "sort": [
+                        {
+                          "desc": true,
+                          "field": "Duration"
+                        }
+                      ]
+                    }
+                  }
+                }
+              ],
+              "queryOptions": {}
+            }
+          }
+        }
+      },
+      "panel-105": {
+        "kind": "Panel",
+        "spec": {
+          "id": 105,
+          "title": "User Connection Limits",
+          "description": "",
+          "links": [],
+          "data": {
+            "kind": "QueryGroup",
+            "spec": {
+              "queries": [
+                {
+                  "kind": "PanelQuery",
+                  "spec": {
+                    "query": {
+                      "kind": "DataQuery",
+                      "group": "prometheus",
+                      "version": "v0",
+                      "spec": {
+                        "editorMode": "code",
+                        "exemplar": false,
+                        "expr": "dispatcharr_user_active_streams / dispatcharr_user_stream_limit",
+                        "instant": true,
+                        "legendFormat": "{{username}}",
+                        "range": false
+                      },
+                      "labels": {
+                        "grafana.app/export-label": "prometheus-1"
+                      }
+                    },
+                    "refId": "A",
+                    "hidden": false
+                  }
+                }
+              ],
+              "transformations": [],
+              "queryOptions": {}
+            }
+          },
+          "vizConfig": {
+            "kind": "VizConfig",
+            "group": "bargauge",
+            "version": "13.0.2",
+            "spec": {
+              "options": {
+                "displayMode": "basic",
+                "legend": {
+                  "calcs": [],
+                  "displayMode": "list",
+                  "placement": "bottom",
+                  "showLegend": false
+                },
+                "maxVizHeight": 300,
+                "minVizHeight": 16,
+                "minVizWidth": 8,
+                "namePlacement": "auto",
+                "orientation": "horizontal",
+                "reduceOptions": {
+                  "calcs": [
+                    "lastNotNull"
+                  ],
+                  "fields": "",
+                  "values": false
+                },
+                "showUnfilled": true,
+                "sizing": "auto",
+                "valueMode": "color"
+              },
+              "fieldConfig": {
+                "defaults": {
+                  "unit": "percentunit",
+                  "decimals": 0,
+                  "min": 0,
+                  "max": 1,
+                  "mappings": [
+                    {
+                      "type": "value",
+                      "options": {
+                        "Infinity": {
+                          "text": "Unlimited",
+                          "color": "text",
+                          "index": 0
+                        }
+                      }
+                    },
+                    {
+                      "type": "special",
+                      "options": {
+                        "match": "null+nan",
+                        "result": {
+                          "text": "Unlimited",
+                          "color": "text",
+                          "index": 1
+                        }
+                      }
+                    }
+                  ],
+                  "thresholds": {
+                    "mode": "absolute",
+                    "steps": [
+                      {
+                        "value": 0,
+                        "color": "green"
+                      }
+                    ]
+                  },
+                  "color": {
+                    "mode": "continuous-GrYlRd"
+                  },
+                  "fieldMinMax": false
+                },
+                "overrides": [
+                  {
+                    "matcher": {
+                      "id": "byName",
+                      "options": "Total"
+                    },
+                    "properties": [
+                      {
+                        "id": "color",
+                        "value": {
+                          "fixedColor": "semi-dark-blue",
+                          "mode": "shades"
+                        }
+                      }
+                    ]
                   }
                 ]
               }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byValue",
-              "options": {
-                "op": "neq",
-                "reducer": "allValues",
-                "value": 99999999
-              }
-            },
-            "properties": [
-              {
-                "id": "custom.filterable"
-              },
-              {
-                "id": "filterable"
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "Client"
-            },
-            "properties": [
-              {
-                "id": "custom.minWidth",
-                "value": 50
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "Sent"
-            },
-            "properties": [
-              {
-                "id": "unit",
-                "value": "decbytes"
-              },
-              {
-                "id": "custom.minWidth",
-                "value": 50
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "Rate"
-            },
-            "properties": [
-              {
-                "id": "unit",
-                "value": "bps"
-              },
-              {
-                "id": "custom.minWidth",
-                "value": 50
-              }
-            ]
-          }
-        ]
-      },
-      "gridPos": {
-        "h": 7,
-        "w": 24,
-        "x": 0,
-        "y": 13
-      },
-      "id": 104,
-      "options": {
-        "cellHeight": "sm",
-        "enablePagination": false,
-        "frameIndex": 1,
-        "showHeader": false,
-        "sortBy": []
-      },
-      "pluginVersion": "12.3.3",
-      "targets": [
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${DS_MONITORING_- PROMETHEUS}"
-          },
-          "editorMode": "code",
-          "exemplar": false,
-          "expr": "dispatcharr_client_connection_duration_seconds \n* on(client_id, channel_uuid) group_left(ip_address)\n  dispatcharr_client_info\n* on(channel_uuid) group_left(channel_name)\n  dispatcharr_stream_metadata",
-          "format": "table",
-          "hide": false,
-          "instant": true,
-          "legendFormat": "__auto",
-          "range": false,
-          "refId": "A"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${DS_MONITORING_- PROMETHEUS}"
-          },
-          "editorMode": "code",
-          "exemplar": false,
-          "expr": "dispatcharr_client_bytes_sent\n* on(client_id, channel_uuid) group_left(ip_address)\n  dispatcharr_client_info\n* on(channel_uuid) group_left(channel_name)\n  dispatcharr_stream_metadata",
-          "format": "table",
-          "hide": false,
-          "instant": true,
-          "legendFormat": "__auto",
-          "range": false,
-          "refId": "B"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${DS_MONITORING_- PROMETHEUS}"
-          },
-          "editorMode": "code",
-          "exemplar": false,
-          "expr": "dispatcharr_client_current_transfer_rate_bps\n* on(client_id, channel_uuid) group_left(ip_address)\n  dispatcharr_client_info\n* on(channel_uuid) group_left(channel_name)\n  dispatcharr_stream_metadata",
-          "format": "table",
-          "hide": false,
-          "instant": true,
-          "legendFormat": "__auto",
-          "range": false,
-          "refId": "C"
-        }
-      ],
-      "title": "Clients",
-      "transformations": [
-        {
-          "id": "labelsToFields",
-          "options": {
-            "mode": "columns"
-          }
-        },
-        {
-          "id": "merge",
-          "options": {}
-        },
-        {
-          "id": "organize",
-          "options": {
-            "excludeByName": {
-              "Time": true,
-              "Value #A": false,
-              "Value #C": false,
-              "__name__": true,
-              "channel_group": true,
-              "channel_name": true,
-              "channel_uuid": true,
-              "client_id": true,
-              "group": true,
-              "instance": true,
-              "job": true,
-              "process": true,
-              "profile_id": true,
-              "profile_name": false,
-              "provider": false,
-              "provider_type": true,
-              "resolution": true,
-              "stream_id": true,
-              "stream_name": true,
-              "stream_profile": true,
-              "type": true,
-              "video_codec": true
-            },
-            "includeByName": {},
-            "indexByName": {
-              "Time": 4,
-              "Value #A": 11,
-              "Value #B": 12,
-              "Value #C": 13,
-              "channel_name": 3,
-              "channel_number": 1,
-              "channel_uuid": 5,
-              "client_id": 0,
-              "group": 6,
-              "instance": 7,
-              "ip_address": 2,
-              "job": 8,
-              "process": 9,
-              "type": 10
-            },
-            "renameByName": {
-              "Value": "Duration",
-              "Value #A": "Duration",
-              "Value #B": "Sent",
-              "Value #C": "Rate",
-              "channel_name": "Name",
-              "channel_number": "Channel",
-              "ip_address": "Client",
-              "logo_url": "Logo",
-              "profile_name": "Profile",
-              "provider": "Provider",
-              "type": "Type"
             }
           }
-        },
-        {
-          "id": "convertFieldType",
-          "options": {
-            "conversions": [
-              {
-                "destinationType": "number",
-                "targetField": "Channel"
+        }
+      },
+      "panel-11": {
+        "kind": "Panel",
+        "spec": {
+          "id": 11,
+          "title": "Incoming Streams",
+          "description": "",
+          "links": [],
+          "data": {
+            "kind": "QueryGroup",
+            "spec": {
+              "queries": [
+                {
+                  "kind": "PanelQuery",
+                  "spec": {
+                    "query": {
+                      "kind": "DataQuery",
+                      "group": "prometheus",
+                      "version": "v0",
+                      "spec": {
+                        "editorMode": "code",
+                        "exemplar": false,
+                        "expr": "dispatcharr_m3u_account_stream_count{status=\"success\"}",
+                        "instant": false,
+                        "legendFormat": "{{account_name}}",
+                        "range": true
+                      },
+                      "labels": {
+                        "grafana.app/export-label": "prometheus-1"
+                      }
+                    },
+                    "refId": "A",
+                    "hidden": false
+                  }
+                }
+              ],
+              "transformations": [],
+              "queryOptions": {}
+            }
+          },
+          "vizConfig": {
+            "kind": "VizConfig",
+            "group": "stat",
+            "version": "13.0.2",
+            "spec": {
+              "options": {
+                "colorMode": "value",
+                "graphMode": "none",
+                "justifyMode": "auto",
+                "orientation": "auto",
+                "percentChangeColorMode": "standard",
+                "reduceOptions": {
+                  "calcs": [
+                    "lastNotNull"
+                  ],
+                  "fields": "",
+                  "values": false
+                },
+                "showPercentChange": true,
+                "textMode": "auto",
+                "wideLayout": true
+              },
+              "fieldConfig": {
+                "defaults": {
+                  "thresholds": {
+                    "mode": "absolute",
+                    "steps": [
+                      {
+                        "value": 0,
+                        "color": "green"
+                      },
+                      {
+                        "value": 80,
+                        "color": "red"
+                      }
+                    ]
+                  },
+                  "color": {
+                    "mode": "palette-classic"
+                  },
+                  "fieldMinMax": false
+                },
+                "overrides": []
               }
-            ],
-            "fields": {}
-          }
-        },
-        {
-          "id": "sortBy",
-          "options": {
-            "fields": {},
-            "sort": [
-              {
-                "desc": true,
-                "field": "Duration"
-              }
-            ]
+            }
           }
         }
-      ],
-      "type": "table"
-    },
-    {
-      "collapsed": false,
-      "gridPos": {
-        "h": 1,
-        "w": 24,
-        "x": 0,
-        "y": 20
       },
-      "id": 5,
-      "panels": [],
-      "title": "Providers & Usage",
-      "type": "row"
-    },
-    {
-      "datasource": {
-        "type": "prometheus",
-        "uid": "${DS_MONITORING_- PROMETHEUS}"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "continuous-GrYlRd"
+      "panel-12": {
+        "kind": "Panel",
+        "spec": {
+          "id": 12,
+          "title": "",
+          "description": "",
+          "links": [],
+          "data": {
+            "kind": "QueryGroup",
+            "spec": {
+              "queries": [
+                {
+                  "kind": "PanelQuery",
+                  "spec": {
+                    "query": {
+                      "kind": "DataQuery",
+                      "group": "prometheus",
+                      "version": "v0",
+                      "spec": {
+                        "editorMode": "code",
+                        "expr": "dispatcharr_active_streams",
+                        "instant": false,
+                        "legendFormat": "Active Streams",
+                        "range": true
+                      },
+                      "labels": {
+                        "grafana.app/export-label": "prometheus-1"
+                      }
+                    },
+                    "refId": "B",
+                    "hidden": false
+                  }
+                },
+                {
+                  "kind": "PanelQuery",
+                  "spec": {
+                    "query": {
+                      "kind": "DataQuery",
+                      "group": "prometheus",
+                      "version": "v0",
+                      "spec": {
+                        "editorMode": "code",
+                        "expr": "dispatcharr_active_clients",
+                        "legendFormat": "Active Clients",
+                        "range": true
+                      },
+                      "labels": {
+                        "grafana.app/export-label": "prometheus-1"
+                      }
+                    },
+                    "refId": "A",
+                    "hidden": false
+                  }
+                },
+                {
+                  "kind": "PanelQuery",
+                  "spec": {
+                    "query": {
+                      "kind": "DataQuery",
+                      "group": "prometheus",
+                      "version": "v0",
+                      "spec": {
+                        "editorMode": "code",
+                        "expr": "dispatcharr_m3u_accounts{status=\"total\"}",
+                        "instant": false,
+                        "legendFormat": "M3U Accounts",
+                        "range": true
+                      },
+                      "labels": {
+                        "grafana.app/export-label": "prometheus-1"
+                      }
+                    },
+                    "refId": "D",
+                    "hidden": false
+                  }
+                },
+                {
+                  "kind": "PanelQuery",
+                  "spec": {
+                    "query": {
+                      "kind": "DataQuery",
+                      "group": "prometheus",
+                      "version": "v0",
+                      "spec": {
+                        "editorMode": "code",
+                        "expr": "dispatcharr_epg_sources{status=\"total\"}",
+                        "instant": false,
+                        "legendFormat": "EPG Sources",
+                        "range": true
+                      },
+                      "labels": {
+                        "grafana.app/export-label": "prometheus-1"
+                      }
+                    },
+                    "refId": "E",
+                    "hidden": false
+                  }
+                },
+                {
+                  "kind": "PanelQuery",
+                  "spec": {
+                    "query": {
+                      "kind": "DataQuery",
+                      "group": "prometheus",
+                      "version": "v0",
+                      "spec": {
+                        "editorMode": "code",
+                        "expr": "dispatcharr_channels",
+                        "instant": false,
+                        "legendFormat": "Exported Channels",
+                        "range": true
+                      },
+                      "labels": {
+                        "grafana.app/export-label": "prometheus-1"
+                      }
+                    },
+                    "refId": "C",
+                    "hidden": false
+                  }
+                }
+              ],
+              "transformations": [],
+              "queryOptions": {}
+            }
           },
-          "decimals": 0,
-          "fieldMinMax": false,
-          "mappings": [],
-          "max": 1,
-          "min": 0,
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": 0
+          "vizConfig": {
+            "kind": "VizConfig",
+            "group": "stat",
+            "version": "13.0.2",
+            "spec": {
+              "options": {
+                "colorMode": "value",
+                "graphMode": "area",
+                "justifyMode": "center",
+                "orientation": "auto",
+                "percentChangeColorMode": "standard",
+                "reduceOptions": {
+                  "calcs": [
+                    "lastNotNull"
+                  ],
+                  "fields": "",
+                  "values": false
+                },
+                "showPercentChange": false,
+                "textMode": "auto",
+                "wideLayout": true
+              },
+              "fieldConfig": {
+                "defaults": {
+                  "thresholds": {
+                    "mode": "absolute",
+                    "steps": [
+                      {
+                        "value": 0,
+                        "color": "green"
+                      },
+                      {
+                        "value": 80,
+                        "color": "red"
+                      }
+                    ]
+                  },
+                  "color": {
+                    "mode": "palette-classic"
+                  }
+                },
+                "overrides": []
               }
-            ]
+            }
+          }
+        }
+      },
+      "panel-2": {
+        "kind": "Panel",
+        "spec": {
+          "id": 2,
+          "title": "Provider Usage",
+          "description": "",
+          "links": [],
+          "data": {
+            "kind": "QueryGroup",
+            "spec": {
+              "queries": [
+                {
+                  "kind": "PanelQuery",
+                  "spec": {
+                    "query": {
+                      "kind": "DataQuery",
+                      "group": "prometheus",
+                      "version": "v0",
+                      "spec": {
+                        "editorMode": "code",
+                        "exemplar": false,
+                        "expr": "sum(\n  dispatcharr_profile_connections\n    unless on(profile_id, profile_name, account_name)\n    (dispatcharr_profile_days_to_expiry == 0)\n)\n/\nsum(\n  dispatcharr_profile_max_connections\n    unless on(profile_id, profile_name, account_name)\n    (dispatcharr_profile_days_to_expiry == 0)\n)",
+                        "instant": true,
+                        "legendFormat": "Total",
+                        "range": false
+                      },
+                      "labels": {
+                        "grafana.app/export-label": "prometheus-1"
+                      }
+                    },
+                    "refId": "B",
+                    "hidden": false
+                  }
+                },
+                {
+                  "kind": "PanelQuery",
+                  "spec": {
+                    "query": {
+                      "kind": "DataQuery",
+                      "group": "prometheus",
+                      "version": "v0",
+                      "spec": {
+                        "editorMode": "code",
+                        "exemplar": false,
+                        "expr": "dispatcharr_profile_connection_usage\n  unless on(profile_id, profile_name, account_name)\n  (dispatcharr_profile_days_to_expiry == 0)",
+                        "instant": true,
+                        "legendFormat": "{{account_name}} {{profile_name}}",
+                        "range": false
+                      },
+                      "labels": {
+                        "grafana.app/export-label": "prometheus-1"
+                      }
+                    },
+                    "refId": "A",
+                    "hidden": false
+                  }
+                }
+              ],
+              "transformations": [],
+              "queryOptions": {}
+            }
           },
-          "unit": "percentunit"
-        },
-        "overrides": [
+          "vizConfig": {
+            "kind": "VizConfig",
+            "group": "bargauge",
+            "version": "13.0.2",
+            "spec": {
+              "options": {
+                "displayMode": "basic",
+                "legend": {
+                  "calcs": [],
+                  "displayMode": "list",
+                  "placement": "bottom",
+                  "showLegend": false
+                },
+                "maxVizHeight": 300,
+                "minVizHeight": 16,
+                "minVizWidth": 8,
+                "namePlacement": "auto",
+                "orientation": "horizontal",
+                "reduceOptions": {
+                  "calcs": [
+                    "lastNotNull"
+                  ],
+                  "fields": "",
+                  "values": false
+                },
+                "showUnfilled": true,
+                "sizing": "auto",
+                "valueMode": "color"
+              },
+              "fieldConfig": {
+                "defaults": {
+                  "unit": "percentunit",
+                  "decimals": 0,
+                  "min": 0,
+                  "max": 1,
+                  "thresholds": {
+                    "mode": "absolute",
+                    "steps": [
+                      {
+                        "value": 0,
+                        "color": "green"
+                      }
+                    ]
+                  },
+                  "color": {
+                    "mode": "continuous-GrYlRd"
+                  },
+                  "fieldMinMax": false
+                },
+                "overrides": [
+                  {
+                    "matcher": {
+                      "id": "byName",
+                      "options": "Total"
+                    },
+                    "properties": [
+                      {
+                        "id": "color",
+                        "value": {
+                          "fixedColor": "semi-dark-blue",
+                          "mode": "shades"
+                        }
+                      }
+                    ]
+                  }
+                ]
+              }
+            }
+          }
+        }
+      },
+      "panel-3": {
+        "kind": "Panel",
+        "spec": {
+          "id": 3,
+          "title": "Provider Expiry",
+          "description": "",
+          "links": [],
+          "data": {
+            "kind": "QueryGroup",
+            "spec": {
+              "queries": [
+                {
+                  "kind": "PanelQuery",
+                  "spec": {
+                    "query": {
+                      "kind": "DataQuery",
+                      "group": "prometheus",
+                      "version": "v0",
+                      "spec": {
+                        "editorMode": "code",
+                        "exemplar": false,
+                        "expr": "dispatcharr_profile_days_to_expiry != -1",
+                        "instant": true,
+                        "legendFormat": "{{account_name}} {{profile_name}}",
+                        "range": false
+                      },
+                      "labels": {
+                        "grafana.app/export-label": "prometheus-1"
+                      }
+                    },
+                    "refId": "A",
+                    "hidden": false
+                  }
+                }
+              ],
+              "transformations": [],
+              "queryOptions": {}
+            }
+          },
+          "vizConfig": {
+            "kind": "VizConfig",
+            "group": "bargauge",
+            "version": "13.0.2",
+            "spec": {
+              "options": {
+                "displayMode": "basic",
+                "legend": {
+                  "calcs": [],
+                  "displayMode": "list",
+                  "placement": "bottom",
+                  "showLegend": false
+                },
+                "maxVizHeight": 300,
+                "minVizHeight": 16,
+                "minVizWidth": 8,
+                "namePlacement": "auto",
+                "orientation": "horizontal",
+                "reduceOptions": {
+                  "calcs": [
+                    "lastNotNull"
+                  ],
+                  "fields": "",
+                  "values": false
+                },
+                "showUnfilled": true,
+                "sizing": "auto",
+                "valueMode": "color"
+              },
+              "fieldConfig": {
+                "defaults": {
+                  "unit": "d",
+                  "decimals": 0,
+                  "min": -1,
+                  "thresholds": {
+                    "mode": "absolute",
+                    "steps": [
+                      {
+                        "value": 0,
+                        "color": "green"
+                      }
+                    ]
+                  },
+                  "color": {
+                    "mode": "continuous-RdYlGr"
+                  },
+                  "fieldMinMax": false
+                },
+                "overrides": [
+                  {
+                    "matcher": {
+                      "id": "byName",
+                      "options": ""
+                    },
+                    "properties": []
+                  }
+                ]
+              }
+            }
+          }
+        }
+      },
+      "panel-7": {
+        "kind": "Panel",
+        "spec": {
+          "id": 7,
+          "title": "",
+          "description": "",
+          "links": [],
+          "data": {
+            "kind": "QueryGroup",
+            "spec": {
+              "queries": [
+                {
+                  "kind": "PanelQuery",
+                  "spec": {
+                    "query": {
+                      "kind": "DataQuery",
+                      "group": "prometheus",
+                      "version": "v0",
+                      "spec": {
+                        "disableTextWrap": false,
+                        "editorMode": "builder",
+                        "exemplar": false,
+                        "expr": "dispatcharr_info",
+                        "fullMetaSearch": false,
+                        "includeNullMetadata": true,
+                        "instant": true,
+                        "legendFormat": "__auto",
+                        "range": false,
+                        "useBackend": false
+                      },
+                      "labels": {
+                        "grafana.app/export-label": "prometheus-1"
+                      }
+                    },
+                    "refId": "A",
+                    "hidden": false
+                  }
+                }
+              ],
+              "transformations": [
+                {
+                  "kind": "Transformation",
+                  "group": "labelsToFields",
+                  "spec": {
+                    "options": {
+                      "keepLabels": [
+                        "version"
+                      ],
+                      "mode": "columns"
+                    }
+                  }
+                },
+                {
+                  "kind": "Transformation",
+                  "group": "renameByRegex",
+                  "spec": {
+                    "options": {
+                      "regex": "version",
+                      "renamePattern": "Dispatcharr Version"
+                    }
+                  }
+                }
+              ],
+              "queryOptions": {}
+            }
+          },
+          "vizConfig": {
+            "kind": "VizConfig",
+            "group": "stat",
+            "version": "13.0.2",
+            "spec": {
+              "options": {
+                "colorMode": "background",
+                "graphMode": "none",
+                "justifyMode": "center",
+                "orientation": "vertical",
+                "percentChangeColorMode": "standard",
+                "reduceOptions": {
+                  "calcs": [
+                    "lastNotNull"
+                  ],
+                  "fields": "/^Dispatcharr Version$/",
+                  "values": false
+                },
+                "showPercentChange": false,
+                "textMode": "value_and_name",
+                "wideLayout": false
+              },
+              "fieldConfig": {
+                "defaults": {
+                  "thresholds": {
+                    "mode": "absolute",
+                    "steps": [
+                      {
+                        "value": 0,
+                        "color": "green"
+                      },
+                      {
+                        "value": 80,
+                        "color": "red"
+                      }
+                    ]
+                  },
+                  "color": {
+                    "mode": "fixed",
+                    "fixedColor": "#14917e"
+                  }
+                },
+                "overrides": []
+              }
+            }
+          }
+        }
+      },
+      "panel-8": {
+        "kind": "Panel",
+        "spec": {
+          "id": 8,
+          "title": "",
+          "description": "",
+          "links": [],
+          "data": {
+            "kind": "QueryGroup",
+            "spec": {
+              "queries": [
+                {
+                  "kind": "PanelQuery",
+                  "spec": {
+                    "query": {
+                      "kind": "DataQuery",
+                      "group": "prometheus",
+                      "version": "v0",
+                      "spec": {
+                        "disableTextWrap": false,
+                        "editorMode": "code",
+                        "exemplar": false,
+                        "expr": "dispatcharr_exporter_info",
+                        "fullMetaSearch": false,
+                        "includeNullMetadata": true,
+                        "instant": true,
+                        "legendFormat": "__auto",
+                        "range": false,
+                        "useBackend": false
+                      },
+                      "labels": {
+                        "grafana.app/export-label": "prometheus-1"
+                      }
+                    },
+                    "refId": "A",
+                    "hidden": false
+                  }
+                }
+              ],
+              "transformations": [
+                {
+                  "kind": "Transformation",
+                  "group": "labelsToFields",
+                  "spec": {
+                    "options": {
+                      "keepLabels": [
+                        "version"
+                      ],
+                      "mode": "columns"
+                    }
+                  }
+                },
+                {
+                  "kind": "Transformation",
+                  "group": "renameByRegex",
+                  "spec": {
+                    "options": {
+                      "regex": "version",
+                      "renamePattern": "Exporter Version"
+                    }
+                  }
+                }
+              ],
+              "queryOptions": {}
+            }
+          },
+          "vizConfig": {
+            "kind": "VizConfig",
+            "group": "stat",
+            "version": "13.0.2",
+            "spec": {
+              "options": {
+                "colorMode": "none",
+                "graphMode": "none",
+                "justifyMode": "center",
+                "orientation": "vertical",
+                "percentChangeColorMode": "standard",
+                "reduceOptions": {
+                  "calcs": [
+                    "lastNotNull"
+                  ],
+                  "fields": "/^Exporter Version$/",
+                  "values": false
+                },
+                "showPercentChange": false,
+                "textMode": "value_and_name",
+                "wideLayout": false
+              },
+              "fieldConfig": {
+                "defaults": {
+                  "thresholds": {
+                    "mode": "absolute",
+                    "steps": [
+                      {
+                        "value": 0,
+                        "color": "green"
+                      },
+                      {
+                        "value": 80,
+                        "color": "red"
+                      }
+                    ]
+                  },
+                  "color": {
+                    "mode": "fixed",
+                    "fixedColor": "#14917e"
+                  }
+                },
+                "overrides": []
+              }
+            }
+          }
+        }
+      }
+    },
+    "layout": {
+      "kind": "RowsLayout",
+      "spec": {
+        "rows": [
           {
-            "matcher": {
-              "id": "byName",
-              "options": "Total"
-            },
-            "properties": [
-              {
-                "id": "color",
-                "value": {
-                  "fixedColor": "semi-dark-blue",
-                  "mode": "shades"
+            "kind": "RowsLayoutRow",
+            "spec": {
+              "title": "Instance Info",
+              "collapse": false,
+              "layout": {
+                "kind": "GridLayout",
+                "spec": {
+                  "items": [
+                    {
+                      "kind": "GridLayoutItem",
+                      "spec": {
+                        "x": 0,
+                        "y": 0,
+                        "width": 12,
+                        "height": 4,
+                        "element": {
+                          "kind": "ElementReference",
+                          "name": "panel-7"
+                        }
+                      }
+                    },
+                    {
+                      "kind": "GridLayoutItem",
+                      "spec": {
+                        "x": 12,
+                        "y": 0,
+                        "width": 12,
+                        "height": 4,
+                        "element": {
+                          "kind": "ElementReference",
+                          "name": "panel-8"
+                        }
+                      }
+                    }
+                  ]
                 }
               }
-            ]
-          }
-        ]
-      },
-      "gridPos": {
-        "h": 8,
-        "w": 12,
-        "x": 0,
-        "y": 21
-      },
-      "id": 2,
-      "options": {
-        "displayMode": "basic",
-        "legend": {
-          "calcs": [],
-          "displayMode": "list",
-          "placement": "bottom",
-          "showLegend": false
-        },
-        "maxVizHeight": 300,
-        "minVizHeight": 16,
-        "minVizWidth": 8,
-        "namePlacement": "auto",
-        "orientation": "horizontal",
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": "",
-          "values": false
-        },
-        "showUnfilled": true,
-        "sizing": "auto",
-        "valueMode": "color"
-      },
-      "pluginVersion": "12.3.3",
-      "targets": [
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${DS_MONITORING_- PROMETHEUS}"
+            }
           },
-          "editorMode": "code",
-          "exemplar": false,
-          "expr": "sum(\n  dispatcharr_profile_connections\n    unless on(profile_id, profile_name, account_name)\n    (dispatcharr_profile_days_to_expiry == 0)\n)\n/\nsum(\n  dispatcharr_profile_max_connections\n    unless on(profile_id, profile_name, account_name)\n    (dispatcharr_profile_days_to_expiry == 0)\n)",
-          "hide": false,
-          "instant": true,
-          "legendFormat": "Total",
-          "range": false,
-          "refId": "B"
-        },
-        {
-          "editorMode": "code",
-          "exemplar": false,
-          "expr": "dispatcharr_profile_connection_usage\n  unless on(profile_id, profile_name, account_name)\n  (dispatcharr_profile_days_to_expiry == 0)",
-          "instant": true,
-          "legendFormat": "{{account_name}} {{profile_name}}",
-          "range": false,
-          "refId": "A",
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${DS_MONITORING_- PROMETHEUS}"
-          }
-        }
-      ],
-      "title": "Usage",
-      "type": "bargauge"
-    },
-    {
-      "datasource": {
-        "type": "prometheus",
-        "uid": "${DS_MONITORING_- PROMETHEUS}"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "continuous-RdYlGr"
-          },
-          "decimals": 0,
-          "fieldMinMax": false,
-          "mappings": [],
-          "min": -1,
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": 0
-              }
-            ]
-          },
-          "unit": "d"
-        },
-        "overrides": [
           {
-            "matcher": {
-              "id": "byName",
-              "options": ""
-            },
-            "properties": []
+            "kind": "RowsLayoutRow",
+            "spec": {
+              "title": "Active Sessions",
+              "collapse": false,
+              "layout": {
+                "kind": "GridLayout",
+                "spec": {
+                  "items": [
+                    {
+                      "kind": "GridLayoutItem",
+                      "spec": {
+                        "x": 0,
+                        "y": 0,
+                        "width": 24,
+                        "height": 7,
+                        "element": {
+                          "kind": "ElementReference",
+                          "name": "panel-1"
+                        }
+                      }
+                    },
+                    {
+                      "kind": "GridLayoutItem",
+                      "spec": {
+                        "x": 0,
+                        "y": 7,
+                        "width": 24,
+                        "height": 7,
+                        "element": {
+                          "kind": "ElementReference",
+                          "name": "panel-104"
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          {
+            "kind": "RowsLayoutRow",
+            "spec": {
+              "title": "Providers & Usage",
+              "collapse": false,
+              "layout": {
+                "kind": "GridLayout",
+                "spec": {
+                  "items": [
+                    {
+                      "kind": "GridLayoutItem",
+                      "spec": {
+                        "x": 0,
+                        "y": 0,
+                        "width": 7,
+                        "height": 8,
+                        "element": {
+                          "kind": "ElementReference",
+                          "name": "panel-105"
+                        }
+                      }
+                    },
+                    {
+                      "kind": "GridLayoutItem",
+                      "spec": {
+                        "x": 7,
+                        "y": 0,
+                        "width": 8,
+                        "height": 8,
+                        "element": {
+                          "kind": "ElementReference",
+                          "name": "panel-2"
+                        }
+                      }
+                    },
+                    {
+                      "kind": "GridLayoutItem",
+                      "spec": {
+                        "x": 15,
+                        "y": 0,
+                        "width": 9,
+                        "height": 8,
+                        "element": {
+                          "kind": "ElementReference",
+                          "name": "panel-3"
+                        }
+                      }
+                    },
+                    {
+                      "kind": "GridLayoutItem",
+                      "spec": {
+                        "x": 0,
+                        "y": 8,
+                        "width": 24,
+                        "height": 3,
+                        "element": {
+                          "kind": "ElementReference",
+                          "name": "panel-12"
+                        }
+                      }
+                    },
+                    {
+                      "kind": "GridLayoutItem",
+                      "spec": {
+                        "x": 0,
+                        "y": 11,
+                        "width": 24,
+                        "height": 4,
+                        "element": {
+                          "kind": "ElementReference",
+                          "name": "panel-11"
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
           }
         ]
-      },
-      "gridPos": {
-        "h": 8,
-        "w": 12,
-        "x": 12,
-        "y": 21
-      },
-      "id": 3,
-      "options": {
-        "displayMode": "basic",
-        "legend": {
-          "calcs": [],
-          "displayMode": "list",
-          "placement": "bottom",
-          "showLegend": false
-        },
-        "maxVizHeight": 300,
-        "minVizHeight": 16,
-        "minVizWidth": 8,
-        "namePlacement": "auto",
-        "orientation": "horizontal",
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": "",
-          "values": false
-        },
-        "showUnfilled": true,
-        "sizing": "auto",
-        "valueMode": "color"
-      },
-      "pluginVersion": "12.3.3",
-      "targets": [
-        {
-          "editorMode": "code",
-          "exemplar": false,
-          "expr": "dispatcharr_profile_days_to_expiry != -1",
-          "instant": true,
-          "legendFormat": "{{account_name}} {{profile_name}}",
-          "range": false,
-          "refId": "A",
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${DS_MONITORING_- PROMETHEUS}"
-          }
-        }
-      ],
-      "title": "Expiry",
-      "type": "bargauge"
+      }
     },
-    {
-      "datasource": {
-        "type": "prometheus",
-        "uid": "${DS_MONITORING_- PROMETHEUS}"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "palette-classic"
-          },
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": 0
-              },
-              {
-                "color": "red",
-                "value": 80
-              }
-            ]
-          }
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 3,
-        "w": 24,
-        "x": 0,
-        "y": 29
-      },
-      "id": 12,
-      "options": {
-        "colorMode": "value",
-        "graphMode": "area",
-        "justifyMode": "center",
-        "orientation": "auto",
-        "percentChangeColorMode": "standard",
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": "",
-          "values": false
-        },
-        "showPercentChange": false,
-        "textMode": "auto",
-        "wideLayout": true
-      },
-      "pluginVersion": "12.3.3",
-      "targets": [
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${DS_MONITORING_- PROMETHEUS}"
-          },
-          "editorMode": "code",
-          "expr": "dispatcharr_active_streams",
-          "hide": false,
-          "instant": false,
-          "legendFormat": "Active Streams",
-          "range": true,
-          "refId": "B"
-        },
-        {
-          "editorMode": "code",
-          "expr": "dispatcharr_active_clients",
-          "legendFormat": "Active Clients",
-          "range": true,
-          "refId": "A",
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${DS_MONITORING_- PROMETHEUS}"
-          }
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${DS_MONITORING_- PROMETHEUS}"
-          },
-          "editorMode": "code",
-          "expr": "dispatcharr_m3u_accounts{status=\"total\"}",
-          "hide": false,
-          "instant": false,
-          "legendFormat": "M3U Accounts",
-          "range": true,
-          "refId": "D"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${DS_MONITORING_- PROMETHEUS}"
-          },
-          "editorMode": "code",
-          "expr": "dispatcharr_epg_sources{status=\"total\"}",
-          "hide": false,
-          "instant": false,
-          "legendFormat": "EPG Sources",
-          "range": true,
-          "refId": "E"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${DS_MONITORING_- PROMETHEUS}"
-          },
-          "editorMode": "code",
-          "expr": "dispatcharr_channels",
-          "hide": false,
-          "instant": false,
-          "legendFormat": "Exported Channels",
-          "range": true,
-          "refId": "C"
-        }
+    "links": [],
+    "liveNow": false,
+    "preload": true,
+    "tags": [],
+    "timeSettings": {
+      "timezone": "browser",
+      "from": "now-6h",
+      "to": "now",
+      "autoRefresh": "auto",
+      "autoRefreshIntervals": [
+        "5s",
+        "10s",
+        "30s",
+        "1m",
+        "5m",
+        "15m",
+        "30m",
+        "1h",
+        "2h",
+        "1d"
       ],
-      "type": "stat"
+      "hideTimepicker": false,
+      "fiscalYearStartMonth": 0
     },
-    {
-      "datasource": {
-        "type": "prometheus",
-        "uid": "${DS_MONITORING_- PROMETHEUS}"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "palette-classic"
-          },
-          "fieldMinMax": false,
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": 0
-              },
-              {
-                "color": "red",
-                "value": 80
-              }
-            ]
-          }
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 4,
-        "w": 24,
-        "x": 0,
-        "y": 32
-      },
-      "id": 11,
-      "options": {
-        "colorMode": "value",
-        "graphMode": "none",
-        "justifyMode": "auto",
-        "orientation": "auto",
-        "percentChangeColorMode": "standard",
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": "",
-          "values": false
-        },
-        "showPercentChange": true,
-        "textMode": "auto",
-        "wideLayout": true
-      },
-      "pluginVersion": "12.3.3",
-      "targets": [
-        {
-          "editorMode": "code",
-          "exemplar": false,
-          "expr": "dispatcharr_m3u_account_stream_count{status=\"success\"}",
-          "instant": false,
-          "legendFormat": "{{account_name}}",
-          "range": true,
-          "refId": "A",
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${DS_MONITORING_- PROMETHEUS}"
-          }
-        }
-      ],
-      "title": "Incoming Streams",
-      "type": "stat"
-    }
-  ],
-  "preload": true,
-  "refresh": "auto",
-  "schemaVersion": 42,
-  "tags": [],
-  "templating": {
-    "list": [
+    "title": "Dispatcharr",
+    "variables": [
       {
-        "allowCustomValue": false,
-        "current": {},
-        "definition": "label_values(dispatcharr_stream_metadata,channel_number)",
-        "includeAll": true,
-        "label": "Active Channel",
-        "name": "channel",
-        "options": [],
-        "query": {
-          "qryType": 1,
-          "query": "label_values(dispatcharr_stream_metadata,channel_number)",
-          "refId": "PrometheusVariableQueryEditor-VariableQuery"
-        },
-        "refresh": 1,
-        "regex": "",
-        "type": "query"
+        "kind": "QueryVariable",
+        "spec": {
+          "name": "channel",
+          "current": {
+            "text": "",
+            "value": ""
+          },
+          "label": "Active Channel",
+          "hide": "dontHide",
+          "refresh": "onDashboardLoad",
+          "skipUrlSync": false,
+          "query": {
+            "kind": "DataQuery",
+            "group": "prometheus",
+            "version": "v0",
+            "spec": {
+              "qryType": 1,
+              "query": "label_values(dispatcharr_stream_metadata,channel_number)",
+              "refId": "PrometheusVariableQueryEditor-VariableQuery"
+            }
+          },
+          "regex": "",
+          "regexApplyTo": "value",
+          "sort": "disabled",
+          "definition": "label_values(dispatcharr_stream_metadata,channel_number)",
+          "options": [],
+          "multi": false,
+          "includeAll": true,
+          "allowCustomValue": false
+        }
       }
     ]
-  },
-  "time": {
-    "from": "now-6h",
-    "to": "now"
-  },
-  "timepicker": {},
-  "timezone": "browser",
-  "title": "Dispatcharr",
-  "uid": "aa842463-afa6-45fb-b63c-1649aa62ebe9",
-  "version": 31,
-  "weekStart": "",
-  "id": null
+  }
 }
