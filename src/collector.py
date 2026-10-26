@@ -4,9 +4,7 @@ Queries Dispatcharr's Django models and Redis state on every scrape request
 and returns the complete metrics output in Prometheus text format.
 """
 
-import json
 import logging
-import math
 import time
 
 from .collectors import collect_core_metrics
@@ -57,8 +55,6 @@ class PrometheusMetricsCollector:
         collect_enabled_metrics(context, writer)
         metrics.extend(writer.drain())
 
-        # Speedtest metrics (from the Packet Slapper plugin)
-        if settings and settings.get('include_speedtest_stats', False):
-            metrics.extend(self._collect_speedtest_metrics())
+        metrics.extend(collect_enabled_metrics(self.redis_client, settings))
 
         return "\n".join(metrics)
