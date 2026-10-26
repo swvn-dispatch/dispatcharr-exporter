@@ -14,6 +14,7 @@ Complete reference for all metrics exposed by the Dispatcharr Prometheus Exporte
 - [Client Connection Metrics](#client-connection-metrics)
 - [User Metrics](#user-metrics)
 - [Plugin Metrics](#plugin-metrics)
+- [Speedtest Metrics](#speedtest-metrics)
 
 ---
 
@@ -1118,6 +1119,79 @@ dispatcharr_plugin_info{key="dispatcharr_exporter",name="Dispatcharr Exporter",v
 
 ---
 
+## Speedtest Metrics
+
+*Optional metrics - disabled by default via `include_speedtest_stats` setting*
+
+Results of the latest Ookla speedtest run by the [Packet Slapper](https://github.com/write-erase/packet-slapper) plugin, which must have its "Publish results for Prometheus" setting turned on. Nothing is emitted until Packet Slapper has published a run.
+
+A failed speedtest updates only the `last_attempt_*` metrics. The result metrics keep the values of the last successful run.
+
+### `dispatcharr_speedtest_last_attempt_timestamp_seconds`
+**Type:** gauge  
+**Value:** Unix timestamp of the latest attempted speedtest (successful or not)  
+**Labels:** None
+
+### `dispatcharr_speedtest_last_attempt_success`
+**Type:** gauge  
+**Value:** 1 if the latest attempt succeeded, 0 if it failed  
+**Labels:** None
+
+### `dispatcharr_speedtest_last_success_timestamp_seconds`
+**Type:** gauge  
+**Value:** Unix timestamp of the latest successful speedtest  
+**Labels:** None
+
+### `dispatcharr_speedtest_download_mbps`
+**Type:** gauge  
+**Value:** Download speed in megabits per second  
+**Labels:** None
+
+### `dispatcharr_speedtest_upload_mbps`
+**Type:** gauge  
+**Value:** Upload speed in megabits per second  
+**Labels:** None
+
+### `dispatcharr_speedtest_latency_ms`
+**Type:** gauge  
+**Value:** Idle ping latency in milliseconds  
+**Labels:** None
+
+### `dispatcharr_speedtest_jitter_ms`
+**Type:** gauge  
+**Value:** Idle ping jitter in milliseconds  
+**Labels:** None
+
+### `dispatcharr_speedtest_packet_loss_percent`
+**Type:** gauge  
+**Value:** Packet loss percentage. Omitted when the Ookla server doesn't report packet loss  
+**Labels:** None
+
+### `dispatcharr_speedtest_server_info`
+**Type:** gauge  
+**Value:** Always 1  
+**Labels:**
+- `isp` - ISP reported by Ookla
+- `server_name` - Ookla server name
+- `server_location` - Server city
+- `server_country` - Server country
+- `server_host` - Server hostname
+
+**Example:**
+```
+dispatcharr_speedtest_last_attempt_timestamp_seconds 1792831617.0554795
+dispatcharr_speedtest_last_attempt_success 1
+dispatcharr_speedtest_last_success_timestamp_seconds 1792831617.0554795
+dispatcharr_speedtest_download_mbps 963.72
+dispatcharr_speedtest_upload_mbps 2056.76
+dispatcharr_speedtest_latency_ms 7.37
+dispatcharr_speedtest_jitter_ms 0.03
+dispatcharr_speedtest_packet_loss_percent 0
+dispatcharr_speedtest_server_info{isp="Datacamp",server_name="Tlap s.r.o. - ZCOM",server_location="Prague",server_country="Czechia",server_host="speedtest.zcom.cz"} 1
+```
+
+---
+
 ## Common PromQL Query Patterns
 
 ### Basic Queries
@@ -1236,4 +1310,10 @@ dispatcharr_profile_connection_usage > 0.9
 
 # Alert on M3U account errors
 dispatcharr_m3u_account_status{status="error"} > 0
+
+# Alert when the latest speedtest failed
+dispatcharr_speedtest_last_attempt_success == 0
+
+# Alert when there's been no successful speedtest for 3 hours
+time() - dispatcharr_speedtest_last_success_timestamp_seconds > 3 * 3600
 ```

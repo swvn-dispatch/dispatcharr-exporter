@@ -4,7 +4,9 @@ Queries Dispatcharr's Django models and Redis state on every scrape request
 and returns the complete metrics output in Prometheus text format.
 """
 
+import json
 import logging
+import math
 import time
 
 try:
@@ -18,6 +20,9 @@ from .config import PLUGIN_CONFIG, PLUGIN_FIELDS, DEFAULT_PORT
 from .utils import escape_label, get_dispatcharr_version
 
 logger = logging.getLogger(__name__)
+
+# Written by the Packet Slapper plugin (https://github.com/write-erase/packet-slapper).
+PACKET_SLAPPER_REDIS_KEY = "packet_slapper:prometheus:latest"
 
 
 class PrometheusMetricsCollector:
@@ -120,6 +125,10 @@ class PrometheusMetricsCollector:
         # User metrics
         if settings and settings.get('include_user_stats', False):
             metrics.extend(self._collect_user_metrics())
+
+        # Speedtest metrics (from the Packet Slapper plugin)
+        if settings and settings.get('include_speedtest_stats', False):
+            metrics.extend(self._collect_speedtest_metrics())
 
         return "\n".join(metrics)
 
@@ -1750,4 +1759,77 @@ class PrometheusMetricsCollector:
             logger.error(f"Error collecting user metrics: {e}", exc_info=True)
 
         metrics.append("")
+        return metrics
+
+    # ── Speedtest metrics ────────────────────────────────────────────────────
+
+    def _collect_speedtest_metrics(self) -> list:
+        """Collect the latest Ookla speedtest published by the Packet Slapper plugin.
+
+        Packet Slapper writes its latest run to one Redis key when its
+        "Publish results for Prometheus" setting is on. Without that plugin
+        the key is absent and nothing is emitted.
+        """
+        if self.redis_client is None:
+            return []
+        try:
+            raw = self.redis_client.get(PACKET_SLAPPER_REDIS_KEY)
+            if not raw:
+                return []
+            state = json.loads(raw)
+            if not isinstance(state, dict):
+                return []
+        except Exception as e:
+            logger.warning(f"Error reading Packet Slapper speedtest metrics: {e}")
+            return []
+
+        metrics = []
+
+        def gauge(name, help_text, value):
+            # Missing or non-numeric values (e.g. packet_loss null when the Ookla
+            # server doesn't report it) are left out rather than shown as 0.
+            try:
+                number = float(value)
+            except (TypeError, ValueError, OverflowError):
+                return
+            if not math.isfinite(number):
+                return
+            # Not :g, which rounds Unix timestamps to 6 significant digits.
+            value_str = str(int(number)) if number.is_integer() else repr(number)
+            metrics.append(f"# HELP {name} {help_text}")
+            metrics.append(f"# TYPE {name} gauge")
+            metrics.append(f"{name} {value_str}")
+
+        gauge("dispatcharr_speedtest_last_attempt_timestamp_seconds",
+              "Unix timestamp of the latest attempted speedtest",
+              state.get("last_attempt_timestamp_seconds"))
+        gauge("dispatcharr_speedtest_last_attempt_success",
+              "Whether the latest speedtest succeeded (1 success, 0 failure)",
+              state.get("last_attempt_success"))
+        gauge("dispatcharr_speedtest_last_success_timestamp_seconds",
+              "Unix timestamp of the latest successful speedtest",
+              state.get("last_success_timestamp_seconds"))
+
+        # A failed run keeps the previous good result, so these stay at the last good values.
+        result = state.get("result")
+        if isinstance(result, dict) and result:
+            for field, suffix, help_text in (
+                ("download_mbps", "download_mbps", "Latest successful download speed in megabits per second"),
+                ("upload_mbps", "upload_mbps", "Latest successful upload speed in megabits per second"),
+                ("latency_ms", "latency_ms", "Latest successful idle ping latency in milliseconds"),
+                ("jitter_ms", "jitter_ms", "Latest successful idle ping jitter in milliseconds"),
+                ("packet_loss", "packet_loss_percent", "Latest successful packet loss percentage"),
+            ):
+                gauge(f"dispatcharr_speedtest_{suffix}", help_text, result.get(field))
+
+            labels = ",".join(
+                f'{field}="{escape_label(result.get(field))}"'
+                for field in ("isp", "server_name", "server_location", "server_country", "server_host")
+            )
+            metrics.append("# HELP dispatcharr_speedtest_server_info ISP and Ookla server of the latest successful speedtest")
+            metrics.append("# TYPE dispatcharr_speedtest_server_info gauge")
+            metrics.append(f"dispatcharr_speedtest_server_info{{{labels}}} 1")
+
+        if metrics:
+            metrics.append("")
         return metrics

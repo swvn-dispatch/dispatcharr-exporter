@@ -29,6 +29,7 @@ This project is maintained in my spare time. If it's saved you some headaches, a
 | Include Client Statistics | `false` | Include individual client connection info (may expose sensitive data) |
 | Include Source URLs | `false` | Include server URLs and XC usernames in metrics. Disable before sharing output for troubleshooting |
 | Include User Statistics | `false` | Include per-user metrics (user info, stream limits, active streams) |
+| Include Speedtest Statistics | `false` | Include the latest speedtest from the [Packet Slapper](https://github.com/write-erase/packet-slapper) plugin (turn on its "Publish results for Prometheus" setting) |
 
 ## Usage
 
