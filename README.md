@@ -31,6 +31,12 @@ This project is maintained in my spare time. If it's saved you some headaches, a
 | Include User Statistics | `false` | Include per-user metrics (user info, stream limits, active streams) |
 | Include Speedtest Statistics | `false` | Include the latest speedtest from the [Packet Slapper](https://github.com/write-erase/packet-slapper) plugin (turn on its "Publish results for Prometheus" setting) |
 
+## External integrations
+
+External metrics are disabled by default and require their producer to be enabled
+separately. See [INTEGRATIONS.md](INTEGRATIONS.md) for the integration model and
+the Packet Slapper Redis contract.
+
 ## Usage
 
 Once the server is started, metrics are available at:
