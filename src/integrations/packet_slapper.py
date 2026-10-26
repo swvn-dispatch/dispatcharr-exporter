@@ -71,10 +71,9 @@ def collect_metrics(context, writer) -> None:
 
 
 INTEGRATION = Integration(
-    name="Speedtest",
+    name="Packet Slapper",
     description=(
-        "Include the latest internet speedtest from the Packet Slapper plugin "
-        "(requires its 'Publish results for Prometheus' setting)"
+        "Include speedtest results from the Packet Slapper plugin."
     ),
     collect_metrics=collect_metrics,
 )
