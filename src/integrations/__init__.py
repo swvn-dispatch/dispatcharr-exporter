@@ -35,7 +35,7 @@ def _validate_integrations() -> tuple:
         fields.append(
             {
                 "id": enabled_field_id,
-                "label": f"Include {integration.name} Statistics",
+                "label": _integration_label(integration, "Include Statistics"),
                 "type": "boolean",
                 "default": False,
                 "description": integration.description,
@@ -52,7 +52,9 @@ def _validate_integrations() -> tuple:
                 raise ValueError(f"Integration {integration.name} has an incomplete setting definition")
 
             field_ids.add(field_id)
-            fields.append(dict(field))
+            field = dict(field)
+            field["label"] = _integration_label(integration, field["label"])
+            fields.append(field)
 
     return tuple(fields)
 
@@ -63,6 +65,11 @@ def _enabled_field_id(integration) -> str:
     if not slug:
         raise ValueError("Integration name must contain letters or numbers")
     return f"include_{slug}_stats"
+
+
+def _integration_label(integration, label: str) -> str:
+    """Return a UI label that distinguishes external integration settings."""
+    return f"[Integration: {integration.name}] {label}"
 
 
 INTEGRATION_FIELDS = _validate_integrations()

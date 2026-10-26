@@ -46,8 +46,9 @@ time() - dispatcharr_speedtest_last_success_timestamp_seconds > 3 * 3600
 1. Add a module under `src/integrations/` that exports an `Integration` object
    and a `collect_metrics(context, writer)` function.
 2. Give the integration a stable name and description. The registry generates
-   its disabled-by-default `include_<name>_stats` boolean automatically. Extra
-   integration-specific fields can be declared in `fields` when needed.
+   its disabled-by-default `include_<name>_stats` boolean automatically. Its
+   UI labels, including any extra integration-specific fields, are prefixed
+   with `[Integration: <name>]` to distinguish them from exporter settings.
 3. Register the object in `src/integrations/__init__.py`. Its generated enable
    control and any extra fields are added to the Dispatcharr plugin UI.
 4. Document its setting in `README.md` and its full metric reference here.
