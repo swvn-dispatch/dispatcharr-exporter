@@ -68,15 +68,13 @@ def _enabled_field_id(integration) -> str:
 INTEGRATION_FIELDS = _validate_integrations()
 
 
-def collect_enabled_metrics(redis_client, settings: dict) -> list:
-    """Collect metrics for enabled external integrations."""
-    settings = settings or {}
-    metrics = []
+def collect_enabled_metrics(context, writer) -> None:
+    """Write metrics for enabled external integrations."""
+    settings = context.settings
     for integration in _INTEGRATIONS:
         if not settings.get(_enabled_field_id(integration), False):
             continue
         try:
-            metrics.extend(integration.collect_metrics(redis_client))
+            integration.collect_metrics(context, writer)
         except Exception as exc:
             logger.warning("Error collecting %s integration metrics: %s", integration.name, exc)
-    return metrics

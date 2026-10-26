@@ -1,8 +1,9 @@
 # External Metrics Integrations
 
 `src/integrations/` contains opt-in metrics that are produced by other plugins
-or external services. Native Dispatcharr model and Redis collections stay in
-`src/collector.py`, even when their exporter setting is optional.
+or external services. Native Dispatcharr model and Redis collections live under
+`src/collectors/`, even when their exporter setting is optional. The top-level
+`src/collector.py` only creates the scrape context and runs the registries.
 
 ## Available integrations
 
@@ -43,8 +44,7 @@ time() - dispatcharr_speedtest_last_success_timestamp_seconds > 3 * 3600
 ### Adding an integration
 
 1. Add a module under `src/integrations/` that exports an `Integration` object
-   and a `collect_metrics(redis_client)` function returning Prometheus text
-   lines.
+   and a `collect_metrics(context, writer)` function.
 2. Give the integration a stable name and description. The registry generates
    its disabled-by-default `include_<name>_stats` boolean automatically. Extra
    integration-specific fields can be declared in `fields` when needed.
@@ -55,6 +55,9 @@ time() - dispatcharr_speedtest_last_success_timestamp_seconds > 3 * 3600
 The registry invokes an integration only when its required enable control is
 true, and isolates failures so a bad external payload cannot fail the
 `/metrics` response or another integration.
+
+Use the shared `MetricsWriter` passed to the collector. Integrations must not
+assemble Prometheus text directly or return raw metric lines.
 
 ### Producer contract
 
@@ -69,7 +72,7 @@ explicitly enabled when the data is optional.
 
 ### Prometheus requirements
 
-Emit HELP and TYPE lines for every metric family. Reject non-finite numeric
-values, escape all label values with `utils.escape_label`, and avoid labels that
-expose credentials or other sensitive data. Keep producer-specific Redis keys,
-payload parsing, and metric formatting in that producer's module.
+Use `MetricsWriter` family builders for HELP and TYPE declarations, numeric
+validation, deterministic labels, and escaping. Avoid labels that expose
+credentials or other sensitive data. Keep producer-specific Redis keys, payload
+parsing, and metric values in that producer's module.
