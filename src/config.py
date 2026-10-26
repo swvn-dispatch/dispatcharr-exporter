@@ -161,6 +161,16 @@ CORE_PLUGIN_FIELDS = [
         "default": False,
         "description": "Include per-channel info (catch-up status, source/stream count, group) metrics",
     },
+    {
+        "id": "include_speedtest_stats",
+        "label": "Include Speedtest Statistics",
+        "type": "boolean",
+        "default": False,
+        "description": (
+            "Include the latest internet speedtest from the Packet Slapper plugin "
+            "(requires its 'Publish results for Prometheus' setting)"
+        ),
+    },
 ]
 
 # The integrations registry generates a disabled-by-default include_* control
