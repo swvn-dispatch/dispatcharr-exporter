@@ -1,13 +1,15 @@
 """Plugin configuration, Redis key constants, and field definitions.
 
-This module is the single source of truth for:
+This module combines the core exporter settings with integration settings for:
   - PLUGIN_CONFIG: loaded from plugin.json
   - Redis key names used by every module
-  - PLUGIN_FIELDS: the settings schema shared by the Plugin class and the collector
+  - PLUGIN_FIELDS: the settings schema shared by the Plugin class and collector
 """
 
 import json
 import os
+
+from .integrations import INTEGRATION_FIELDS
 
 
 # ── Hard-coded defaults ─────────────────────────────────────────────────────
@@ -64,7 +66,7 @@ HEARTBEAT_TTL = 30  # seconds
 # ── Plugin field definitions ─────────────────────────────────────────────────
 # Shared between the Plugin class (used by Dispatcharr UI) and the collector
 # (used to build the dispatcharr_exporter_settings_info metric).
-PLUGIN_FIELDS = [
+CORE_PLUGIN_FIELDS = [
     {
         "id": "auto_start",
         "label": "Auto-Start Metrics Server",
@@ -159,14 +161,8 @@ PLUGIN_FIELDS = [
         "default": False,
         "description": "Include per-channel info (catch-up status, source/stream count, group) metrics",
     },
-    {
-        "id": "include_speedtest_stats",
-        "label": "Include Speedtest Statistics",
-        "type": "boolean",
-        "default": False,
-        "description": (
-            "Include the latest internet speedtest from the Packet Slapper plugin "
-            "(requires its 'Publish results for Prometheus' setting)"
-        ),
-    },
 ]
+
+# The integrations registry generates a disabled-by-default include_* control
+# for every integration before its fields reach the UI.
+PLUGIN_FIELDS = CORE_PLUGIN_FIELDS + list(INTEGRATION_FIELDS)

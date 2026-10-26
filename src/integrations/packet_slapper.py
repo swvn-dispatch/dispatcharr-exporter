@@ -5,8 +5,8 @@ import logging
 import math
 
 from ..utils import escape_label
+from .base import Integration
 
-SETTING_ID = "include_speedtest_stats"
 REDIS_KEY = "packet_slapper:prometheus:latest"
 MAX_PAYLOAD_BYTES = 64 * 1024
 logger = logging.getLogger(__name__)
@@ -92,3 +92,13 @@ def collect_metrics(redis_client) -> list:
     if metrics:
         metrics.append("")
     return metrics
+
+
+INTEGRATION = Integration(
+    name="Speedtest",
+    description=(
+        "Include the latest internet speedtest from the Packet Slapper plugin "
+        "(requires its 'Publish results for Prometheus' setting)"
+    ),
+    collect_metrics=collect_metrics,
+)

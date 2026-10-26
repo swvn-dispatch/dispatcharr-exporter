@@ -42,14 +42,19 @@ time() - dispatcharr_speedtest_last_success_timestamp_seconds > 3 * 3600
 
 ### Adding an integration
 
-1. Add a module under `src/integrations/` that exports a setting ID and a
-   `collect_metrics(redis_client)` function returning Prometheus text lines.
-2. Register it in `src/integrations/__init__.py`.
-3. Add a boolean `include_*` setting to `src/config.py`, defaulting to `False`.
+1. Add a module under `src/integrations/` that exports an `Integration` object
+   and a `collect_metrics(redis_client)` function returning Prometheus text
+   lines.
+2. Give the integration a stable name and description. The registry generates
+   its disabled-by-default `include_<name>_stats` boolean automatically. Extra
+   integration-specific fields can be declared in `fields` when needed.
+3. Register the object in `src/integrations/__init__.py`. Its generated enable
+   control and any extra fields are added to the Dispatcharr plugin UI.
 4. Document its setting in `README.md` and its full metric reference here.
 
-The registry invokes only enabled integrations and isolates their failures so a
-bad external payload cannot fail the `/metrics` response or another integration.
+The registry invokes an integration only when its required enable control is
+true, and isolates failures so a bad external payload cannot fail the
+`/metrics` response or another integration.
 
 ### Producer contract
 
