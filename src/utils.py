@@ -9,11 +9,13 @@ logger = logging.getLogger(__name__)
 def escape_label(value) -> str:
     """Escape a string for use as a Prometheus label value.
 
-    Order is critical: escape backslashes first, then double-quotes, then newlines.
+    Order is critical: escape backslashes first, then double-quotes, then line
+    breaks. Carriage returns are normalized to newlines because the Prometheus
+    text format has no standalone carriage-return escape sequence.
     """
     if not value:
         return ""
-    return str(value).replace('\\', '\\\\').replace('"', '\\"').replace('\n', '\\n')
+    return str(value).replace('\\', '\\\\').replace('"', '\\"').replace('\r', '\\n').replace('\n', '\\n')
 
 
 def normalize_host(host, default: str) -> str:

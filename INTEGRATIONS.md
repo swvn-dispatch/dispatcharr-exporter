@@ -55,8 +55,8 @@ bad external payload cannot fail the `/metrics` response or another integration.
 
 Producers should publish a stable, namespaced Redis key and a JSON object. The
 integration must tolerate an absent key, bytes or decoded string values,
-malformed data, unavailable Redis, and producer upgrades. Add a schema version
-before making incompatible changes to an established payload.
+malformed or oversized data, unavailable Redis, and producer upgrades. Add a
+schema version before making incompatible changes to an established payload.
 
 Do not assume a key has a TTL. If values survive restarts, publish timestamps so
 Prometheus users can alert on stale data. Producers and consumers must both be

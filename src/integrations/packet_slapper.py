@@ -8,6 +8,7 @@ from ..utils import escape_label
 
 SETTING_ID = "include_speedtest_stats"
 REDIS_KEY = "packet_slapper:prometheus:latest"
+MAX_PAYLOAD_BYTES = 64 * 1024
 logger = logging.getLogger(__name__)
 
 
@@ -23,6 +24,12 @@ def collect_metrics(redis_client) -> list:
     try:
         raw = redis_client.get(REDIS_KEY)
         if not raw:
+            return []
+        if not isinstance(raw, (bytes, str)):
+            logger.warning("Ignoring Packet Slapper speedtest payload with unsupported type %s", type(raw).__name__)
+            return []
+        if len(raw) > MAX_PAYLOAD_BYTES:
+            logger.warning("Ignoring oversized Packet Slapper speedtest payload")
             return []
         state = json.loads(raw)
         if not isinstance(state, dict):

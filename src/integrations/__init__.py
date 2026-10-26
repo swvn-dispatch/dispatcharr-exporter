@@ -18,6 +18,7 @@ _INTEGRATIONS = (
 
 def collect_enabled_metrics(redis_client, settings: dict) -> list:
     """Collect metrics for enabled external integrations."""
+    settings = settings or {}
     metrics = []
     for setting_id, name, collect_metrics in _INTEGRATIONS:
         if not settings.get(setting_id, False):
