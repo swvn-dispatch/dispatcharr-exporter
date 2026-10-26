@@ -45,7 +45,7 @@ class MetricsWriter:
         """Return rendered lines emitted since the previous drain."""
         lines = self._lines
         self._lines = []
-        return lines
+        return _group_declarations(lines)
 
     def _family(self, name: str, help_text: str, metric_type: str, info=False):
         return _MetricFamily(self, name, help_text, metric_type, info=info)
@@ -188,3 +188,29 @@ def _append_label(labels, name, value):
     items = list(labels.items()) if isinstance(labels, dict) else list(labels or ())
     items.append((name, value))
     return items
+
+
+def _group_declarations(lines):
+    """Place a logical group's declarations before all of its samples.
+
+    Families are still declared only after a valid first sample, but collectors
+    that alternate samples from several families retain conventional exposition
+    layout and the exporter's historical group ordering.
+    """
+    rendered = []
+    declarations = []
+    samples = []
+    for line in lines:
+        if line == "":
+            rendered.extend(declarations)
+            rendered.extend(samples)
+            rendered.append("")
+            declarations = []
+            samples = []
+        elif line.startswith("# "):
+            declarations.append(line)
+        else:
+            samples.append(line)
+    rendered.extend(declarations)
+    rendered.extend(samples)
+    return rendered

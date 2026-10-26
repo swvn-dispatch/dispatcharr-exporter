@@ -48,6 +48,26 @@ class MetricsWriterTests(unittest.TestCase):
             ],
         )
 
+    def test_declarations_precede_all_samples_in_a_group(self):
+        writer = MetricsWriter()
+        first = writer.gauge("first", "First")
+        second = writer.gauge("second", "Second")
+        first.add(1)
+        second.add(2)
+        first.add(3)
+        self.assertEqual(
+            writer.drain(),
+            [
+                "# HELP first First",
+                "# TYPE first gauge",
+                "# HELP second Second",
+                "# TYPE second gauge",
+                "first 1",
+                "second 2",
+                "first 3",
+            ],
+        )
+
     def test_invalid_values_do_not_declare_a_metric(self):
         writer = MetricsWriter()
         self.assertFalse(writer.counter("example_total", "Example counter").add(float("nan")))
