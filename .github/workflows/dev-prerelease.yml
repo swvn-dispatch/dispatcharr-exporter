@@ -1,9 +1,8 @@
 name: Publish Dev Pre-release
 
-# On every push to dev, builds a fresh zip and recreates the fixed `dev`
-# pre-release.  The existing `dev` release and tag are deleted first so the
-# download URL stays stable.  The update-manifest job is then called directly
-# to rebuild the manifest branch.
+# On every push to dev, builds a versioned prerelease ZIP and GitHub release.
+# The version includes the latest stable base and the source commit SHA, so
+# each dev artifact is immutable. The aggregator refreshes its dev manifest.
 
 on:
   push:
@@ -30,12 +29,10 @@ jobs:
         id: config
         run: |
           SLUG=$(python3 -c "import json; n=json.load(open('src/plugin.json'))['name']; print(n.lower().replace(' ','_'))")
-          DEV_TAG=$(python3 -c "import json; print(json.load(open('.github/workflows/manifest-config.json'))['dev_tag'])")
           AGGREGATOR_REPO=$(python3 -c "import json; print(json.load(open('.github/workflows/manifest-config.json')).get('aggregator_repo',''))")
           BASE_NAME="${SLUG//_/-}"
           echo "slug=$SLUG" >> $GITHUB_OUTPUT
           echo "base_name=$BASE_NAME" >> $GITHUB_OUTPUT
-          echo "dev_tag=$DEV_TAG" >> $GITHUB_OUTPUT
           echo "aggregator_repo=$AGGREGATOR_REPO" >> $GITHUB_OUTPUT
 
       - name: Determine dev version
@@ -51,9 +48,9 @@ jobs:
             BASE="0.0.0"
           fi
           PLUGIN_VERSION="${BASE}-dev-${HASH}"
-          TAG="${{ steps.config.outputs.dev_tag }}"
+          TAG="v${PLUGIN_VERSION}"
           BASE_NAME="${{ steps.config.outputs.base_name }}"
-          ZIP="${BASE_NAME}-${{ steps.config.outputs.dev_tag }}.zip"
+          ZIP="${BASE_NAME}-${PLUGIN_VERSION}.zip"
           echo "PLUGIN_VERSION=$PLUGIN_VERSION" >> $GITHUB_OUTPUT
           echo "HASH=$HASH" >> $GITHUB_OUTPUT
           echo "TAG=$TAG" >> $GITHUB_OUTPUT
@@ -68,22 +65,6 @@ jobs:
           chmod +x package.sh
           ./package.sh
 
-      - name: Rename zip for stable dev link
-        run: |
-          BASE_NAME="${{ steps.config.outputs.base_name }}"
-          ZIP="${{ steps.version.outputs.ZIP }}"
-          # package.sh produces {base_name}-{PLUGIN_VERSION}.zip; rename to stable name
-          VERSIONED=$(ls "${BASE_NAME}"-*.zip 2>/dev/null | head -1)
-          if [ -n "$VERSIONED" ] && [ "$VERSIONED" != "$ZIP" ]; then
-            mv "$VERSIONED" "$ZIP"
-          fi
-
-      - name: Delete old dev release
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          gh release delete "${{ steps.config.outputs.dev_tag }}" --yes 2>/dev/null || true
-          git push origin :refs/tags/${{ steps.config.outputs.dev_tag }} 2>/dev/null || true
 
       - name: Create dev pre-release
         env:
@@ -119,11 +100,31 @@ jobs:
           | **Discord** | ${DISCORD} |"
           fi
 
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            echo "Versioned dev prerelease $TAG already exists; leaving its immutable artifact unchanged."
+            exit 0
+          fi
+
           gh release create "$TAG" \
+            --target "$GITHUB_SHA" \
             --prerelease \
             --title "Dev Build (${HASH})" \
             --notes "$NOTES" \
             "$ZIP"
+
+      - name: Prune old dev prereleases
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          # Remove the mutable legacy release after a versioned release has succeeded.
+          gh release delete dev-latest --cleanup-tag --yes 2>/dev/null || true
+
+          gh release list --limit 100 --json tagName,isPrerelease,publishedAt \
+            --jq '[.[] | select(.isPrerelease and (.tagName | test("^v[0-9]+\\.[0-9]+\\.[0-9]+-dev-[0-9a-f]{8}$"))) | sort_by(.publishedAt) | reverse | .[5:][]' \
+            | while IFS= read -r OLD_TAG; do
+                [ -n "$OLD_TAG" ] || continue
+                gh release delete "$OLD_TAG" --cleanup-tag --yes
+              done
 
       - name: Notify aggregator
         env:
