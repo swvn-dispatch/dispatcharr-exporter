@@ -52,7 +52,7 @@ dispatcharr_exporter_info{version="1.2.0"} 1
 ### `dispatcharr_exporter_settings_info`
 **Type:** gauge  
 **Value:** Always 1  
-**Labels:** All plugin settings as labels (for debugging/support)
+**Labels:** Exporter configuration settings (for debugging/support)
 - `auto_start` - Auto-start enabled (true/false)
 - `suppress_access_logs` - Access log suppression (true/false)
 - `port` - Metrics server port
@@ -1236,4 +1236,5 @@ dispatcharr_profile_connection_usage > 0.9
 
 # Alert on M3U account errors
 dispatcharr_m3u_account_status{status="error"} > 0
+
 ```
