@@ -8,11 +8,13 @@ import logging
 import re
 
 from .packet_slapper import INTEGRATION as PACKET_SLAPPER_INTEGRATION
+from .stream_usage import INTEGRATION as STREAM_USAGE_INTEGRATION
 
 logger = logging.getLogger(__name__)
 
 _INTEGRATIONS = (
     PACKET_SLAPPER_INTEGRATION,
+    STREAM_USAGE_INTEGRATION,
 )
 
 

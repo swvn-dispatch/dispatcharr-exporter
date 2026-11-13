@@ -49,6 +49,30 @@ time() - dispatcharr_speedtest_last_success_timestamp_seconds > 3 * 3600
 dispatcharr_speedtest_download_latency_ms > 3 * dispatcharr_speedtest_latency_ms
 ```
 
+### Stream Usage
+
+Enable **Publish for Exporter** in the Stream Usage plugin, then enable this
+exporter's **Include Stream Usage Statistics** setting (`include_stream_usage_stats`).
+The plugin polls live Redis session counters every 60 seconds by default and
+publishes JSON schema version 1 to `stream_usage:prometheus:latest`. Its SQLite
+history and lifetime counters survive restarts and plugin updates. Resetting
+counters restarts the Prometheus lifetime series. Exported user and channel
+labels are pinned up to the configured top N; later labels are grouped into
+`other` so its counter never decreases. The UI and API rank monthly usage
+independently.
+
+| Metric | Type | Description |
+| --- | --- | --- |
+| `dispatcharr_usage_bytes_total{direction}` | counter | Lifetime sampled bytes in/out. |
+| `dispatcharr_usage_user_bytes_total{username,direction}` | counter | Lifetime bytes by user; top N and `other`. |
+| `dispatcharr_usage_channel_bytes_total{channel,direction}` | counter | Lifetime bytes by channel; top N and `other`. |
+| `dispatcharr_usage_period_bytes{period,direction}` | gauge | Rolling hour/week and calendar today/month bytes. |
+| `dispatcharr_usage_last_poll_timestamp_seconds` | gauge | Unix time of the latest poll. |
+
+Sessions shorter than a poll can be missed. Redis counters may disappear before
+the next poll, so the numbers are estimates. The channel stop event can recover
+some final inbound bytes. Labels contain usernames only, never IPs or credentials.
+
 ## Integrating
 
 ### Adding an integration
