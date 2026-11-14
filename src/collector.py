@@ -55,6 +55,4 @@ class PrometheusMetricsCollector:
         collect_enabled_metrics(context, writer)
         metrics.extend(writer.drain())
 
-        metrics.extend(collect_enabled_metrics(self.redis_client, settings))
-
         return "\n".join(metrics)
