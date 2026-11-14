@@ -47,6 +47,10 @@ def collect_metrics(context, writer) -> None:
         "dispatcharr_speedtest_last_success_timestamp_seconds",
         "Unix timestamp of the latest successful speedtest",
     ).add(state.get("last_success_timestamp_seconds"))
+    writer.gauge(
+        "dispatcharr_speedtest_last_skip_timestamp_seconds",
+        "Unix timestamp of the latest scheduled speedtest skipped because someone was watching",
+    ).add(state.get("last_skip_timestamp_seconds"))
 
     result = state.get("result")
     if isinstance(result, dict) and result:
@@ -56,6 +60,10 @@ def collect_metrics(context, writer) -> None:
             ("latency_ms", "latency_ms", "Latest successful idle ping latency in milliseconds"),
             ("jitter_ms", "jitter_ms", "Latest successful idle ping jitter in milliseconds"),
             ("packet_loss", "packet_loss_percent", "Latest successful packet loss percentage"),
+            ("download_latency_ms", "download_latency_ms",
+             "Latest successful ping latency while downloading (loaded latency) in milliseconds"),
+            ("upload_latency_ms", "upload_latency_ms",
+             "Latest successful ping latency while uploading (loaded latency) in milliseconds"),
         ):
             writer.gauge(f"dispatcharr_speedtest_{suffix}", help_text).add(result.get(field))
 
