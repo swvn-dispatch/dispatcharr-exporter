@@ -24,11 +24,14 @@ retain the values from the last successful run.
 | `dispatcharr_speedtest_last_attempt_timestamp_seconds` | gauge | Unix timestamp of the latest attempted speedtest. |
 | `dispatcharr_speedtest_last_attempt_success` | gauge | `1` after a successful attempt, `0` after a failed attempt. |
 | `dispatcharr_speedtest_last_success_timestamp_seconds` | gauge | Unix timestamp of the latest successful speedtest. |
+| `dispatcharr_speedtest_last_skip_timestamp_seconds` | gauge | Unix timestamp of the latest scheduled speedtest skipped because a stream was being watched. Skips are not attempts. Omitted until a run has been skipped. |
 | `dispatcharr_speedtest_download_mbps` | gauge | Download speed in megabits per second. |
 | `dispatcharr_speedtest_upload_mbps` | gauge | Upload speed in megabits per second. |
 | `dispatcharr_speedtest_latency_ms` | gauge | Idle ping latency in milliseconds. |
 | `dispatcharr_speedtest_jitter_ms` | gauge | Idle ping jitter in milliseconds. |
 | `dispatcharr_speedtest_packet_loss_percent` | gauge | Packet loss percentage. Omitted when Ookla does not report it. |
+| `dispatcharr_speedtest_download_latency_ms` | gauge | Ping latency while downloading (loaded latency, bufferbloat) in milliseconds. Omitted when Ookla does not report it. |
+| `dispatcharr_speedtest_upload_latency_ms` | gauge | Ping latency while uploading (loaded latency, bufferbloat) in milliseconds. Omitted when Ookla does not report it. |
 | `dispatcharr_speedtest_server_info` | gauge | Always `1`, with `isp`, `server_name`, `server_location`, `server_country`, and `server_host` labels. |
 
 ```promql
@@ -37,6 +40,13 @@ dispatcharr_speedtest_last_attempt_success == 0
 
 # Alert when no successful speedtest has occurred for three hours
 time() - dispatcharr_speedtest_last_success_timestamp_seconds > 3 * 3600
+
+# ...unless a scheduled run was skipped in the last hour because someone was watching
+time() - dispatcharr_speedtest_last_success_timestamp_seconds > 3 * 3600
+  unless time() - dispatcharr_speedtest_last_skip_timestamp_seconds < 3600
+
+# Alert on bufferbloat: loaded ping far above idle ping
+dispatcharr_speedtest_download_latency_ms > 3 * dispatcharr_speedtest_latency_ms
 ```
 
 ## Integrating
