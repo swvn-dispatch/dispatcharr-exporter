@@ -70,8 +70,8 @@ independently.
 | `dispatcharr_usage_last_poll_timestamp_seconds` | gauge | Unix time of the latest poll. |
 
 Sessions shorter than a poll can be missed. Redis counters may disappear before
-the next poll, so the numbers are estimates. The channel stop event can recover
-some final inbound bytes. Labels contain usernames only, never IPs or credentials.
+the next poll, so the numbers are estimates. Labels contain usernames only, never
+IPs or credentials.
 
 ## Integrating
 
