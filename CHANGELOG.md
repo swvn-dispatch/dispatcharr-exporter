@@ -2,6 +2,22 @@
 
 All notable changes to this project are documented in this file.
 
+## [v3.4.0](https://github.com/swvn-dispatch/dispatcharr-exporter/releases/tag/v3.4.0) - 2026-11-18
+
+### Added
+
+- Add an optional integration with the Stream Usage plugin to export sampled traffic totals, including breakdowns by user, channel, and time period. Contributed by @funkasaur in [#19](https://github.com/swvn-dispatch/dispatcharr-exporter/pull/19).
+
+### Changed
+
+- Require Dispatcharr v0.34.0 or later. Approve the requested plugin capabilities and restart Dispatcharr when upgrading from an older exporter version.
+- Start and stop the metrics server automatically with the enabled plugin. Save server settings and reload the plugin to apply them.
+- Apply saved metric and integration settings on the next scrape without a plugin reload. Organize settings into server, metric, and individual integration sections.
+
+### Removed
+
+- Remove the auto-start setting and server control actions. Reload the plugin to restart the server, or disable it to stop the server.
+
 ## [v3.3.0](https://github.com/swvn-dispatch/dispatcharr-exporter/releases/tag/v3.3.0) - 2026-11-14
 
 ### Added
