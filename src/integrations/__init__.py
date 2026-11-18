@@ -40,6 +40,11 @@ def _validate_integrations() -> tuple:
             "label": f"Integration: {integration.name}",
             "type": "section",
             "collapsed": True,
+        })
+        fields.append({
+            "id": f"{section_id}_note",
+            "type": "info",
+            "section": section_id,
             "description": "Saved changes take effect on the next metrics scrape.",
         })
         fields.append(
