@@ -27,6 +27,7 @@ class Plugin:
             host=normalize_host(settings.get("host"), DEFAULT_HOST),
             port=int(settings.get("port") or DEFAULT_PORT),
             settings=settings,
+            get_settings=getter,
         )
         context["start_service"](server.run, name="metrics")
         self.server = server

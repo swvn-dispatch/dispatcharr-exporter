@@ -39,7 +39,7 @@ the Packet Slapper Redis contract.
 
 ## Usage
 
-The elected plugin leader starts the metrics server automatically. Save settings and reload the plugin to apply changes. Disabling the plugin stops the server. On upgrades from older versions, restart Dispatcharr after approving capabilities to ensure the old server has stopped.
+The elected plugin leader starts the metrics server automatically. Stats and integration settings take effect on the next scrape after saving. Save and reload the plugin to apply server settings. Disabling the plugin stops the server. On upgrades from older versions, restart Dispatcharr after approving capabilities to ensure the old server has stopped.
 
 Metrics are available at:
 

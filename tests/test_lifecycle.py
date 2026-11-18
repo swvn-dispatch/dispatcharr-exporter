@@ -28,10 +28,12 @@ class LifecycleTests(unittest.TestCase):
         self.assertNotIn("auto_start", fields)
         self.assertEqual(fields["port"]["section"], "server_settings")
         self.assertEqual(fields["include_m3u_stats"]["section"], "stats_settings")
-        for name in ("packet_slapper", "stream_usage"):
+        for name, label in (("packet_slapper", "Packet Slapper"), ("stream_usage", "Stream Usage")):
             section = f"include_{name}_stats_section"
             self.assertTrue(fields[section]["collapsed"])
+            self.assertEqual(fields[section]["label"], f"Integration: {label}")
             self.assertEqual(fields[f"include_{name}_stats"]["section"], section)
+            self.assertEqual(fields[f"include_{name}_stats"]["label"], f"Enable {label} Integration")
 
     def test_leadership_and_current_settings(self):
         plugin = Plugin()
@@ -85,6 +87,22 @@ class LifecycleTests(unittest.TestCase):
                 MetricsServer(None, port=1, settings={"suppress_access_logs": False}).run(event)
             self.assertTrue(servers[-1].stopped)
             self.assertNotIn("log", servers[-1].kwargs)
+
+    def test_scrape_reads_fresh_stats_but_keeps_server_settings(self):
+        settings = {"include_epg_stats": False, "port": 9192}
+        seen = []
+        collector = types.SimpleNamespace(collect_metrics=lambda settings: seen.append(settings) or "ok")
+        server = MetricsServer(collector, port=9192, settings={}, get_settings=lambda: dict(settings))
+        response = []
+        with patch.dict(sys.modules, {"django": None}):
+            server.wsgi_app({"PATH_INFO": "/metrics"}, lambda status, headers: response.append(status))
+            settings.update({"include_epg_stats": True, "port": 9999, "suppress_access_logs": False})
+            server.wsgi_app({"PATH_INFO": "/metrics"}, lambda status, headers: response.append(status))
+        self.assertEqual(response, ["200 OK", "200 OK"])
+        self.assertFalse(seen[0]["include_epg_stats"])
+        self.assertTrue(seen[1]["include_epg_stats"])
+        self.assertEqual(seen[1]["port"], 9192)
+        self.assertTrue(seen[1]["suppress_access_logs"])
 
 
 if __name__ == "__main__":

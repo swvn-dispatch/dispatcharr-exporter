@@ -28,7 +28,7 @@ PLUGIN_CONFIG = _load_plugin_config()
 # Shared between the Plugin class (used by Dispatcharr UI) and the collector
 # (used to build the dispatcharr_exporter_settings_info metric).
 CORE_PLUGIN_FIELDS = [
-    {"id": "server_settings", "label": "Server", "type": "section", "collapsed": False, "description": "Save changes and reload the plugin to apply them."},
+    {"id": "server_settings", "label": "Server", "type": "section", "collapsed": False, "description": "Save changes and reload the plugin to apply server settings."},
     {
         "id": "suppress_access_logs",
         "label": "Suppress Access Logs",

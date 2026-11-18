@@ -17,11 +17,12 @@ logger = logging.getLogger(__name__)
 class MetricsServer:
     """WSGI metrics listener owned by Dispatcharr's managed service."""
 
-    def __init__(self, collector, port=None, host=None, settings=None):
+    def __init__(self, collector, port=None, host=None, settings=None, get_settings=None):
         self.collector = collector
         self.port = port if port is not None else DEFAULT_PORT
         self.host = normalize_host(host, DEFAULT_HOST)
         self.settings = settings or {}
+        self.get_settings = get_settings
 
     def wsgi_app(self, environ, start_response):
         """Handle a single HTTP request."""
@@ -29,7 +30,15 @@ class MetricsServer:
 
         if path == '/metrics':
             try:
-                metrics_text = self.collector.collect_metrics(settings=self.settings)
+                settings = self.get_settings() if self.get_settings else self.settings
+                # Server settings describe the running listener until reload.
+                settings = dict(settings or {})
+                settings.update({
+                    "host": self.host,
+                    "port": self.port,
+                    "suppress_access_logs": self.settings.get("suppress_access_logs", True),
+                })
+                metrics_text = self.collector.collect_metrics(settings=settings)
                 start_response('200 OK', [('Content-Type', 'text/plain; version=0.0.4; charset=utf-8')])
                 return [metrics_text.encode('utf-8')]
             except Exception as e:
