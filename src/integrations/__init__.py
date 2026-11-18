@@ -8,11 +8,13 @@ import logging
 import re
 
 from .packet_slapper import INTEGRATION as PACKET_SLAPPER_INTEGRATION
+from .stream_usage import INTEGRATION as STREAM_USAGE_INTEGRATION
 
 logger = logging.getLogger(__name__)
 
 _INTEGRATIONS = (
     PACKET_SLAPPER_INTEGRATION,
+    STREAM_USAGE_INTEGRATION,
 )
 
 
@@ -32,13 +34,27 @@ def _validate_integrations() -> tuple:
             raise ValueError(f"Integration {integration.name} has a duplicate generated setting ID")
 
         field_ids.add(enabled_field_id)
+        section_id = f"{enabled_field_id}_section"
+        fields.append({
+            "id": section_id,
+            "label": f"Integration: {integration.name}",
+            "type": "section",
+            "collapsed": True,
+        })
+        fields.append({
+            "id": f"{section_id}_note",
+            "type": "info",
+            "section": section_id,
+            "description": "Saved changes take effect on the next metrics scrape.",
+        })
         fields.append(
             {
                 "id": enabled_field_id,
-                "label": _integration_label(integration, "Include Statistics"),
+                "label": f"Enable {integration.name} Integration",
                 "type": "boolean",
                 "default": False,
                 "description": integration.description,
+                "section": section_id,
             }
         )
 
@@ -53,7 +69,7 @@ def _validate_integrations() -> tuple:
 
             field_ids.add(field_id)
             field = dict(field)
-            field["label"] = _integration_label(integration, field["label"])
+            field["section"] = section_id
             fields.append(field)
 
     return tuple(fields)
@@ -65,11 +81,6 @@ def _enabled_field_id(integration) -> str:
     if not slug:
         raise ValueError("Integration name must contain letters or numbers")
     return f"include_{slug}_stats"
-
-
-def _integration_label(integration, label: str) -> str:
-    """Return a UI label that distinguishes external integration settings."""
-    return f"[Integration: {integration.name}] {label}"
 
 
 INTEGRATION_FIELDS = _validate_integrations()
