@@ -28,7 +28,7 @@ PLUGIN_CONFIG = _load_plugin_config()
 # Shared between the Plugin class (used by Dispatcharr UI) and the collector
 # (used to build the dispatcharr_exporter_settings_info metric).
 CORE_PLUGIN_FIELDS = [
-    {"id": "server_settings", "label": "Server", "type": "section", "collapsed": False, "description": "Save changes and reload the plugin to apply server settings."},
+    {"id": "server_settings", "label": "Server Settings", "type": "section", "collapsed": False, "description": "Save changes and reload the plugin to apply server settings."},
     {
         "id": "suppress_access_logs",
         "label": "Suppress Access Logs",
@@ -52,7 +52,7 @@ CORE_PLUGIN_FIELDS = [
         "description": "Host address to bind to (0.0.0.0 for all interfaces, 127.0.0.1 for localhost only)",
         "placeholder": "0.0.0.0",
     },
-    {"id": "stats_settings", "label": "Stats", "type": "section", "collapsed": False},
+    {"id": "stats_settings", "label": "Metric Settings", "type": "section", "collapsed": False, "description": "Saved changes take effect on the next metrics scrape."},
     {
         "id": "base_url",
         "label": "Dispatcharr Base URL (Optional)",

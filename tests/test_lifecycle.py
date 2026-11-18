@@ -26,11 +26,15 @@ class LifecycleTests(unittest.TestCase):
         self.assertIn("network_listener", manifest["capabilities"])
         fields = {field["id"]: field for field in PLUGIN_FIELDS}
         self.assertNotIn("auto_start", fields)
+        self.assertEqual(fields["server_settings"]["label"], "Server Settings")
+        self.assertEqual(fields["stats_settings"]["label"], "Metric Settings")
+        self.assertIn("next metrics scrape", fields["stats_settings"]["description"])
         self.assertEqual(fields["port"]["section"], "server_settings")
         self.assertEqual(fields["include_m3u_stats"]["section"], "stats_settings")
         for name, label in (("packet_slapper", "Packet Slapper"), ("stream_usage", "Stream Usage")):
             section = f"include_{name}_stats_section"
             self.assertTrue(fields[section]["collapsed"])
+            self.assertIn("next metrics scrape", fields[section]["description"])
             self.assertEqual(fields[section]["label"], f"Integration: {label}")
             self.assertEqual(fields[f"include_{name}_stats"]["section"], section)
             self.assertEqual(fields[f"include_{name}_stats"]["label"], f"Enable {label} Integration")
