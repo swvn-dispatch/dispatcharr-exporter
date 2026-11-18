@@ -32,24 +32,6 @@ def redis_decode(value, default: str = '') -> str:
     return value.decode('utf-8') if isinstance(value, bytes) else str(value)
 
 
-def get_redis_client():
-    """Return the shared Dispatcharr Redis client, or None on failure."""
-    try:
-        from core.utils import RedisClient
-        return RedisClient.get_client()
-    except Exception:
-        return None
-
-
-def read_redis_flag(redis_client, key: str) -> bool:
-    """Return True if the given Redis key holds the value '1'."""
-    try:
-        val = redis_client.get(key) if redis_client else None
-        return val in (b"1", "1")
-    except Exception:
-        return False
-
-
 def get_dispatcharr_version():
     """Return ``(version, timestamp, full_version)`` for the running Dispatcharr instance."""
     import sys
@@ -81,24 +63,3 @@ def get_dispatcharr_version():
         full_version = f"v{dispatcharr_version}-{dispatcharr_timestamp}"
 
     return dispatcharr_version, dispatcharr_timestamp, full_version
-
-
-def compare_versions(current: str, minimum: str) -> bool:
-    """Return True if *current* >= *minimum* (semantic version comparison)."""
-    try:
-        current = current.lstrip('v')
-        minimum = minimum.lstrip('v')
-        c_parts = [int(x) for x in current.split('.')]
-        m_parts = [int(x) for x in minimum.split('.')]
-        while len(c_parts) < len(m_parts):
-            c_parts.append(0)
-        while len(m_parts) < len(c_parts):
-            m_parts.append(0)
-        for c, m in zip(c_parts, m_parts):
-            if c > m:
-                return True
-            if c < m:
-                return False
-        return True
-    except (ValueError, AttributeError):
-        return True

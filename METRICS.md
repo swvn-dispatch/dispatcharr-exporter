@@ -53,7 +53,6 @@ dispatcharr_exporter_info{version="1.2.0"} 1
 **Type:** gauge  
 **Value:** Always 1  
 **Labels:** Exporter configuration settings (for debugging/support)
-- `auto_start` - Auto-start enabled (true/false)
 - `suppress_access_logs` - Access log suppression (true/false)
 - `port` - Metrics server port
 - `host` - Metrics server host
@@ -70,7 +69,7 @@ dispatcharr_exporter_info{version="1.2.0"} 1
 
 **Example:**
 ```
-dispatcharr_exporter_settings_info{auto_start="true",suppress_access_logs="true",port="9192",host="0.0.0.0",base_url="",include_m3u_stats="true",include_epg_stats="false",include_client_stats="false",include_source_urls="false",include_user_stats="false",include_plugin_stats="false",include_channel_info="false"} 1
+dispatcharr_exporter_settings_info{suppress_access_logs="true",port="9192",host="0.0.0.0",base_url="",include_m3u_stats="true",include_epg_stats="false",include_client_stats="false",include_source_urls="false",include_user_stats="false",include_plugin_stats="false",include_channel_info="false",include_packet_slapper_stats="false",include_stream_usage_stats="false"} 1
 ```
 
 ### `dispatcharr_exporter_port`

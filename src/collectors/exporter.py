@@ -18,6 +18,8 @@ def collect_exporter_metrics(context, writer) -> None:
     port_value = DEFAULT_PORT
 
     for field in PLUGIN_FIELDS:
+        if field["type"] == "section":
+            continue
         field_id = field["id"]
         field_value = context.settings.get(field_id, field["default"])
         if field_id == "port":

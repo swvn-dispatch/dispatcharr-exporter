@@ -12,14 +12,13 @@ This project is maintained in my spare time. If it's saved you some headaches, a
 
 1. Download the latest release zip from the [releases page](https://github.com/sethwv/dispatcharr-exporter/releases).
 2. In Dispatcharr, go to **Plugins** and upload the zip.
-3. Restart Dispatcharr.
+3. Approve the requested capabilities and restart Dispatcharr for the network listener capability.
 4. Enable the plugin and configure settings.
 
 ## Configuration
 
 | Setting | Default | Description |
 |---------|---------|-------------|
-| Auto-start Server | `false` | Automatically start metrics server when Dispatcharr starts |
 | Suppress Access Logs | `true` | Suppress HTTP access logs for /metrics requests |
 | Metrics Server Port | `9192` | Port for the HTTP metrics server |
 | Metrics Server Host | `0.0.0.0` | Bind address (`0.0.0.0` for all interfaces, `127.0.0.1` for local only) |
@@ -40,7 +39,9 @@ the Packet Slapper Redis contract.
 
 ## Usage
 
-Once the server is started, metrics are available at:
+The elected plugin leader starts the metrics server automatically. Save settings and reload the plugin to apply changes. Disabling the plugin stops the server. On upgrades from older versions, restart Dispatcharr after approving capabilities to ensure the old server has stopped.
+
+Metrics are available at:
 
 ```
 http://your-dispatcharr-host:9192/metrics
@@ -48,13 +49,6 @@ http://your-dispatcharr-host:9192/health
 ```
 
 You may need to map port 9192 if running in Docker.
-
-## Plugin Actions
-
-- **Start Metrics Server** - Start the HTTP server on the configured port
-- **Stop Metrics Server** - Stop the HTTP server
-- **Restart Metrics Server** - Restart the server (useful after changing settings)
-- **Server Status** - Check if the server is running
 
 ## Metrics Reference
 
@@ -66,7 +60,7 @@ See [EXAMPLES.md](EXAMPLES.md) for sample Grafana panels and dashboards.
 
 ## Requirements
 
-- Dispatcharr v0.19.0 or later
+- Dispatcharr v0.34.0 or later
 
 ## Building from Source
 

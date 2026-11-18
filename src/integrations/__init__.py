@@ -34,6 +34,13 @@ def _validate_integrations() -> tuple:
             raise ValueError(f"Integration {integration.name} has a duplicate generated setting ID")
 
         field_ids.add(enabled_field_id)
+        section_id = f"{enabled_field_id}_section"
+        fields.append({
+            "id": section_id,
+            "label": integration.name,
+            "type": "section",
+            "collapsed": True,
+        })
         fields.append(
             {
                 "id": enabled_field_id,
@@ -41,6 +48,7 @@ def _validate_integrations() -> tuple:
                 "type": "boolean",
                 "default": False,
                 "description": integration.description,
+                "section": section_id,
             }
         )
 
@@ -56,6 +64,7 @@ def _validate_integrations() -> tuple:
             field_ids.add(field_id)
             field = dict(field)
             field["label"] = _integration_label(integration, field["label"])
+            field["section"] = section_id
             fields.append(field)
 
     return tuple(fields)
